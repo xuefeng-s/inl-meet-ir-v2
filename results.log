@@ -1,60 +1,123 @@
 #------------------------------------------------------------------------------------------
-May-22-2021 15:13:16
+May-22-2021 21:15:01
 	Bert und Sentiment Durchschnittswert (mit langem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Logistic Regression: 0.662109375
+		Accuracy for classifier Logistic Regression: 0.646484375
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 15:16:17
+May-22-2021 21:18:03
 	Bert und Sentiment Durchschnittswert (mit langem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Gaussian Naive Byes: 0.611328125
+		Accuracy for classifier Gaussian Naive Byes: 0.630859375
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 15:36:53
+May-22-2021 21:38:38
 	Bert und Sentiment Durchschnittswert (mit langem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Bernoulli Naive Byes: 0.63671875
+		Accuracy for classifier Bernoulli Naive Byes: 0.6328125
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 19:07:52
+May-22-2021 21:46:16
 	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit langem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Logistic Regression: 0.662109375
+		Accuracy for classifier Logistic Regression: 0.630859375
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 19:10:48
+May-22-2021 21:49:18
 	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit langem Dictonary). Spalte SUBJlang
 		Accuracy for classifier Gaussian Naive Byes: 0.611328125
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 19:32:15
+May-22-2021 22:09:28
 	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit langem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Bernoulli Naive Byes: 0.63671875
+		Accuracy for classifier Bernoulli Naive Byes: 0.609375
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 19:39:10
+May-22-2021 22:16:26
 	Bert und Sentiment Durchschnittswert (mit kurzem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Logistic Regression: 0.662109375
+		Accuracy for classifier Logistic Regression: 0.64453125
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 19:42:10
+May-22-2021 22:19:31
 	Bert und Sentiment Durchschnittswert (mit kurzem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Gaussian Naive Byes: 0.611328125
+		Accuracy for classifier Gaussian Naive Byes: 0.62109375
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 20:03:28
+May-22-2021 22:40:09
 	Bert und Sentiment Durchschnittswert (mit kurzem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Bernoulli Naive Byes: 0.63671875
+		Accuracy for classifier Bernoulli Naive Byes: 0.578125
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 20:10:25
+May-22-2021 22:47:30
 	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit kurzem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Logistic Regression: 0.662109375
+		Accuracy for classifier Logistic Regression: 0.62890625
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 20:13:25
+May-22-2021 22:50:34
 	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit kurzem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Gaussian Naive Byes: 0.611328125
+		Accuracy for classifier Gaussian Naive Byes: 0.603515625
 #------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
-May-22-2021 20:35:01
+May-22-2021 23:11:03
 	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit kurzem Dictonary). Spalte SUBJlang
-		Accuracy for classifier Bernoulli Naive Byes: 0.63671875
+		Accuracy for classifier Bernoulli Naive Byes: 0.57421875
+#------------------------------------------------------------------------------------------
+
+
+
+#------------------------------------------------------------------------------------------
+May-22-2021 23:18:03
+	Bert und Sentiment Durchschnittswert (mit langem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Logistic Regression: 0.697265625
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-22-2021 23:21:06
+	Bert und Sentiment Durchschnittswert (mit langem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Gaussian Naive Byes: 0.671875
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-22-2021 23:41:49
+	Bert und Sentiment Durchschnittswert (mit langem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Bernoulli Naive Byes: 0.669921875
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-22-2021 23:49:18
+	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit langem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Logistic Regression: 0.701171875
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-22-2021 23:52:22
+	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit langem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Gaussian Naive Byes: 0.671875
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-23-2021 00:12:50
+	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit langem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Bernoulli Naive Byes: 0.673828125
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-23-2021 00:19:49
+	Bert und Sentiment Durchschnittswert (mit kurzem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Logistic Regression: 0.697265625
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-23-2021 00:22:54
+	Bert und Sentiment Durchschnittswert (mit kurzem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Gaussian Naive Byes: 0.671875
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-23-2021 00:43:36
+	Bert und Sentiment Durchschnittswert (mit kurzem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Bernoulli Naive Byes: 0.669921875
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-23-2021 00:51:02
+	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit kurzem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Logistic Regression: 0.701171875
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-23-2021 00:54:03
+	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit kurzem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Gaussian Naive Byes: 0.671875
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+May-23-2021 01:14:49
+	Bert und die Anzahl der Wörter aus dem Sentiment Dictonary (mit kurzem Dictonary). Spalte SUBJopin
+		Accuracy for classifier Bernoulli Naive Byes: 0.673828125
 #------------------------------------------------------------------------------------------
