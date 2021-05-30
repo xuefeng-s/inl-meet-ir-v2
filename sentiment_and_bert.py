@@ -7,6 +7,11 @@ import transformers as ppb
 import pandas as pd
 import numpy as np
 import torch
+import joblib
+import re
+import os
+import time
+from enum import Enum
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score
@@ -16,8 +21,6 @@ from sklearn.pipeline import Pipeline
 from transformers import pipeline
 from datetime import datetime
 from typing import List
-import joblib
-import re
 
 nltk.download('stopwords')
 
@@ -25,10 +28,19 @@ nltk.download('stopwords')
 print(pipeline('sentiment-analysis')('we love you'))
 
 
-
 # Man kann auch mehrere hintereinander machen
 
-class TextToSentenceTransformer(BaseEstimator, TransformerMixin):
+class ColumnUser:
+    def set_column_to_use(self, column_name):
+        pass
+
+
+class ColumnTransformer(ColumnUser):
+    def set_column_to_transform(self, column_to_transform):
+        pass
+
+
+class TextToSentenceTransformer(BaseEstimator, TransformerMixin, ColumnTransformer):
     def __init__(self, column_to_transform, new_column_name):
         self.column_to_transform = column_to_transform
         self.new_column_name = new_column_name
@@ -36,16 +48,14 @@ class TextToSentenceTransformer(BaseEstimator, TransformerMixin):
     def set_column_to_transform(self, column_to_transform):
         self.column_to_transform = column_to_transform
 
-    def set_new_column_name(self, new_column_name):
-        self.new_column_name = new_column_name
+    def set_column_to_use(self, column_name):
+        self.new_column_name = column_name
 
     def fit(self, X, y=None):
         return self
 
     def transform(self, data):
         if self.column_to_transform in data.columns:
-            # data[self.new_column_name] = self.split_text_in_sentences(data)
-            # return data
             return pd.DataFrame({self.new_column_name: self.split_text_in_sentences(data)})
         else:
             self.log_error(
@@ -63,7 +73,7 @@ class TextToSentenceTransformer(BaseEstimator, TransformerMixin):
             sentences += sentences_in_text
         return sentences
 
-    def log_error(self, description, filename='text_to_sentence_transformer.error'):
+    def log_error(self, description, filename='logs/text_to_sentence_transformer.error'):
         with open(filename, 'a', encoding='utf-8') as file:
             file.write('#------------------------------------------------------------------------------------------\n')
             file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
@@ -72,7 +82,7 @@ class TextToSentenceTransformer(BaseEstimator, TransformerMixin):
                 '#------------------------------------------------------------------------------------------\n\n\n')
 
 
-class BertTransformer(BaseEstimator, TransformerMixin):
+class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
 
     def __init__(self, column):
         self.column = column
@@ -84,8 +94,8 @@ class BertTransformer(BaseEstimator, TransformerMixin):
         self.tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
         self.model = model_class.from_pretrained(pretrained_weights)
 
-    def set_column(self, column):
-        self.column = column
+    def set_column_to_use(self, column_name):
+        self.column = column_name
 
     def fit(self, X, y=None):
         return self
@@ -97,7 +107,12 @@ class BertTransformer(BaseEstimator, TransformerMixin):
         tokenized = []
 
         for s in dataList:
-            tokenized.append(self.tokenizer.encode(s, add_special_tokens=True))
+            t = self.tokenizer.encode(s, add_special_tokens=True)
+            tokenized.append(t)
+            if len(t) > 500:
+                print('wtf oO')
+                print(s)
+                print(t)
 
         # Padding hinzufügen
         max_len = 0
@@ -127,13 +142,13 @@ class BertTransformer(BaseEstimator, TransformerMixin):
         return (data, features)
 
 
-class PreprocessorTransformer(BaseEstimator, TransformerMixin):
+class PreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUser):
 
     def __init__(self, column):
         self.column = column
 
-    def set_column(self, column):
-        self.column = column
+    def set_column_to_use(self, column_name):
+        self.column = column_name
 
     def fit(self, X, y=None):
         return self
@@ -171,7 +186,6 @@ class SentimentOpinionValueCalculatorSingleValueTransformer(BaseEstimator, Trans
         sentences, features = sentences_and_features
         for sentence in sentences:
             word_count = len(sentence)
-            # print(f'length of sentence {sentence} = {word_count}')
             sentiment_opinion_score = 0
             if word_count > 0:
                 for word in sentence:
@@ -198,13 +212,11 @@ class SentimentOpinionValueCounterTransformer(BaseEstimator, TransformerMixin):
         sentences, features = sentences_and_features
         for sentence in sentences:
             word_count = len(sentence)
-            # print(f'length of sentence {sentence} = {word_count}')
             sentiment_opinion_score = 0
             if word_count > 0:
                 for word in sentence:
                     if word in self.value_dict:
                         sentiment_opinion_score += 1
-                # sentiment_opinion_score = sentiment_opinion_score / word_count
             sentiment_opinion_scores.append([sentiment_opinion_score])
         for i in range(len(sentiment_opinion_scores)):
             features[i] = features[i] + (sentiment_opinion_scores[i][0])
@@ -213,7 +225,7 @@ class SentimentOpinionValueCounterTransformer(BaseEstimator, TransformerMixin):
 
 class PipelineRunner:
 
-    def __init__(self, dict_file, training_file, test_file, log_file='results_with_correct_input.log'):
+    def __init__(self, dict_file, training_file, test_file, log_file='results/results_with_correct_input.log'):
         self.dict_file = dict_file
         self.log_file = log_file
         self.data_training = pd.read_excel(training_file, sheet_name='sentences')
@@ -226,114 +238,119 @@ class PipelineRunner:
             ['SUBJindl', 'SUBJsrce', 'SUBJrhet', 'SUBJster', 'SUBJspee', 'SUBJinspe', 'SUBJprop', 'SUBJpolit'],
             axis=1,
             inplace=True)
-        self.Cs = np.logspace(-6, 6, 200)
-        self.pipeline_to_use = None
-        self.clf = None
-        self.text_to_sentence_transformer = None
-        self.bert = None
-        self.preprocessor = None
+        self.pipeline = None
+        self.transformer_name_dict = {
+                                      TextToSentenceTransformer.__name__: "ts",
+                                      BertTransformer.__name__: "bert",
+                                      PreprocessorTransformer.__name__: "prepro",
+                                      SentimentOpinionValueCalculatorSingleValueTransformer.__name__: "sentval",
+                                      SentimentOpinionValueCounterTransformer.__name__: "sentcount"
+                                      }
+        self.estimator_name_dict = {
+            LogisticRegression.__name__: 'log_reg',
+            GaussianNB.__name__: 'gau_nb',
+            BernoulliNB.__name__: 'ber_nb'
+        }
 
-    def start_all_pipelines(self, data_column):
-        self.bert = BertTransformer('Sentence')
-        self.preprocessor = PreprocessorTransformer('Sentence')
-        self.text_to_sentence_transformer = TextToSentenceTransformer('text', 'Sentence')
-        transformer_list = [self.text_to_sentence_transformer,
-                            self.bert,
-                            self.preprocessor,
-                            SentimentOpinionValueCalculatorSingleValueTransformer(self.dict_file)]
+    def prepare_pipeline(self, data_column, estimator_type, transformer_types_list):
 
-        description = f'Bert und Sentiment Durchschnittswert (mit langem Dictonary). Spalte {data_column}'
+        if not self.pipeline:
+            raise RuntimeError("Don't call this function directly use make_pipeline")
 
-        print('Starting with Logistic Regression')
+        print(f'Starting fitting: {estimator_type}')
+        accuracy = self.fit_and_predict_and_calculate_accuracy_pipe(data_column)
+        description = f'\tUsed estimator: {estimator_type}\n'
+        description += f'\tUsed transformers: {", ".join(transformer_types_list)}\n'
+        description += f'\tColumn: {data_column}\n'
+        self.write_result_to_file(accuracy, description)
 
-        self.pipeline_to_use = self.make_pipeline(transformer_list, LogisticRegression(max_iter=500), dict(C=self.Cs))
-        log_reg_typ = "Logistic Regression"
-        accuracy = self.fit_and_predict_and_calculate_accuracy_pipe(self.pipeline_to_use, data_column)
-        self.write_result_to_file(accuracy, log_reg_typ, description)
+    def make_pipeline(self, transformer_list, estimator,
+                      data_column, param_gird, classifier_description='',
+                      dir_path='', force_fitting=False):
 
-        # print('Starting with Gaussian Naive Bayes')
-        #
-        # gau_nb_typ = "Gaussian Naive Bayes"
-        #
-        # pipeline_to_use = self.make_pipeline(transformer_list, GaussianNB(), dict(var_smoothing=self.Cs))
-        # accuracy = self.fit_and_predict_and_calculate_accuracy_pipe(pipeline_to_use, data_column)
-        # self.write_result_to_file(accuracy, gau_nb_typ, description)
-        #
-        #
-        # print('Starting with Bernoulli Naive Bayes')
-        #
-        # bernoulli_nb_typ = "Bernoulli Naive Bayes"
-        #
-        # pipeline_to_use = self.make_pipeline(transformer_list, BernoulliNB(), dict(alpha=self.Cs, binarize=self.Cs))
-        # accuracy = self.fit_and_predict_and_calculate_accuracy_pipe(pipeline_to_use, data_column)
-        # self.write_result_to_file(accuracy, bernoulli_nb_typ, description)
+        classifier_file = self.create_pipe_line_name(transformer_list, estimator, classifier_description, data_column, dir_path)
+        if force_fitting or not os.path.exists(classifier_file):
+            print('No classfier found for your configuration or force_fitting=True. Creating new one and saving it.')
+            clf = GridSearchCV(estimator=estimator, param_grid=param_gird, n_jobs=-1, scoring='accuracy')
 
-    def make_pipeline(self, transformer_list, estimator, param_gird):
-        self.clf = GridSearchCV(estimator=estimator, param_grid=param_gird, n_jobs=-1, scoring='accuracy')
+            self.pipeline = sklearn.pipeline.Pipeline(
+                [(f'stage: {self.transformer_name_dict[type(transformer_list[index]).__name__]}',
+                  transformer_list[index]) for index in range(len(transformer_list))] +
+                [('clf', clf)]
+            )
+            self.prepare_pipeline(data_column, type(estimator).__name__, [type(t).__name__ for t in transformer_list])
+            print(f'Saving classifier to file {classifier_file}')
+            self.save_classifier(classifier_file)
+        else:
+            print(f'Classifier exists. Loaded from file {classifier_file}')
+            self.load_classifier(classifier_file)
 
-        return sklearn.pipeline.Pipeline(
-            [(f'stage: {index}', transformer_list[index]) for index in range(len(transformer_list))] + [
-                ('clf', self.clf)]
-        )
+        return self.pipeline
 
-    def fit_and_predict_and_calculate_accuracy_pipe(self, pipe, data_column):
-        pipe.fit(self.data_training, self.data_training[data_column].to_numpy())
 
-        y_pred_pipe = pipe.predict(self.data_test)
+    def create_pipe_line_name(self, transformer_list, estimator, classifier_description, data_column, dir_path=''):
+        names = [self.transformer_name_dict[type(transformer).__name__] for transformer in transformer_list]
+        description = ''
+        if classifier_description:
+            description = '_' + classifier_description
+        if dir_path and not dir_path.endswith('/') and not dir_path.endswith('\\'):
+            dir_path += '/'
+        return dir_path + f'classifier/{self.estimator_name_dict[type(estimator).__name__]}_with_{"_".join(names)}{description}_{data_column}_pipeline.joblib.plk'
 
+    def load_classifier(self, filename):
+        self.pipeline = joblib.load(filename)
+
+    def save_classifier(self, filename):
+        joblib.dump(self.pipeline, filename)
+
+    def fit_and_predict_and_calculate_accuracy_pipe(self, data_column):
+        print('Start fiting')
+        self.pipeline.fit(self.data_training, self.data_training[data_column].to_numpy())
+        print('Start prediction')
+        start = time.time()
+        y_pred_pipe = self.pipeline.predict(self.data_test)
+        end = time.time()
+        print(f'time needed: {end - start}')
         return accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
 
-    def write_result_to_file(self, accuracy, type, description):
+    def write_result_to_file(self, accuracy, description):
         with open(self.log_file, 'a', encoding='utf-8') as file:
             file.write('#------------------------------------------------------------------------------------------\n')
             file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
-            file.write(f'\t{description}\n')
-            file.write(f'\t\tAccuracy for classifier {type}: {accuracy}\n')
+            file.write(f'{description}\n')
+            file.write(f'\tAccuracy: {accuracy}\n')
             file.write('#------------------------------------------------------------------------------------------\n')
 
-    def predict_data(self, data_file_name, column_to_transform=None, new_column_name=None, result_for_column=''):
+    def predict_data(self, data_file_name, column_to_transform=None, new_column_name=None, batch_size=1, result_for_column='', log_file=f'results/results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'):
         data_validation = pd.read_csv(data_file_name)
 
         if column_to_transform is not None:
-            self.text_to_sentence_transformer.set_column_to_transform(column_to_transform)
+            for obj in self.pipeline.named_steps.values():
+                if issubclass(type(obj), ColumnTransformer):
+                    obj.set_column_to_transform(column_to_transform)
 
         if new_column_name is not None:
-            self.text_to_sentence_transformer.set_new_column_name(new_column_name)
-            self.bert.set_column(new_column_name)
-            self.preprocessor.set_column(new_column_name)
-        # bert = BertTransformer('text')
-        # preprocessor = PreprocessorTransformer('text')
-        # transformer_list = [bert,
-        #                     preprocessor,
-        #                     SentimentOpinionValueCalculatorSingleValueTransformer(dict_file)]
-        #
-        # pipe = sklearn.pipeline.Pipeline(
-        #     [(f'stage: {index}', transformer_list[index]) for index in range(len(transformer_list))] + [
-        #         ('clf', self.clf)]
-        # )
-        with open('mbfc_results.log', 'a', encoding='utf-8') as f:
+            for obj in self.pipeline.named_steps.values():
+                if issubclass(type(obj), ColumnUser):
+                    obj.set_column_to_use(new_column_name)
+
+        with open(log_file, 'a', encoding='utf-8') as f:
             f.write('#-------------------------------------------------')
             f.write(f'result for column {result_for_column}:\n')
 
         row_count = data_validation.shape[0]
-        batch_size = 15
         counter = 0
 
         while counter * batch_size < row_count:
 
-            output = self.pipeline_to_use.predict(data_validation.loc[counter * batch_size : (counter + 1) * batch_size])
-            with open('mbfc_results.log', 'a', encoding='utf-8') as f:
-                # f.write('#-------------------------------------------------')
-                # f.write(f'result for column {result_for_column}:\n')
+            output = self.pipeline.predict(data_validation.loc[counter * batch_size: (counter + 1) * batch_size])
+            with open(log_file, 'a', encoding='utf-8') as f:
                 f.write(f'{output.tolist()}')
                 f.write('\n')
             counter += 1
 
 
-        with open('mbfc_results.log', 'a', encoding='utf-8') as f:
-            # f.write('#-------------------------------------------------')
-            # f.write(f'result for column {result_for_column}:\n')
-            # f.write(output)
+        with open(log_file, 'a', encoding='utf-8') as f:
             f.write('#-------------------------------------------------\n\n\n\n\n')
 
 
@@ -346,7 +363,7 @@ def fit_and_predict_and_calculate_accuracy_pipe(pipe, train_input, train_ouput, 
 
 
 def write_result_to_file(accuracy, type, description):
-    result_file = 'results_with_correct_input.log'
+    result_file = 'results/results_with_correct_input.log'
     with open(result_file, 'a', encoding='utf-8') as file:
         file.write('#------------------------------------------------------------------------------------------\n')
         file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
@@ -363,11 +380,24 @@ if __name__ == '__main__':
     training_file = dir_path + 'Trainingdata_train.xlsx'
 
     test_file = dir_path + 'Trainingdata_test.xlsx'
-    # print(pd.read_csv('MBFC_Dataset_Sample.csv').shape[0])
-    # print(TextToSentenceTransformer('text', 'Sentence').transform(pd.read_csv('MBFC_Dataset_Sample.csv')))
 
-    pipeline_runner = PipelineRunner(dict_file, training_file, test_file)
-    pipeline_runner.start_all_pipelines('SUBJopin01')
-    pipeline_runner.predict_data(data_file_name='MBFC_Dataset_Sample.csv', result_for_column='SUBJopin')
-    pipeline_runner.start_all_pipelines('SUBJlang01')
-    pipeline_runner.predict_data(data_file_name='MBFC_Dataset_Sample.csv', result_for_column='SUBJlang')
+    transformers_list = [TextToSentenceTransformer('text', 'Sentence'),
+                         BertTransformer('Sentence'),
+                         PreprocessorTransformer('Sentence'),
+                         SentimentOpinionValueCalculatorSingleValueTransformer(dict_file)]
+
+    pipeline_runner = PipelineRunner(dict_file, training_file, test_file, log_file=dir_path + 'results/results_with_dict_only.log')
+    Cs = np.logspace(-6, 6, 200)
+    max_iter = 500
+    log_reg_subjopin = LogisticRegression(max_iter=max_iter)
+    pipeline_runner.make_pipeline(transformers_list, log_reg_subjopin, 'SUBJopin01', dict(C=Cs), dir_path=dir_path)
+
+    pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
+                                 result_for_column='SUBJopin',
+                                 log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log')
+
+    log_reg_subjlang = LogisticRegression(max_iter=max_iter)
+    pipeline_runner.make_pipeline(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path)
+    pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
+                                 result_for_column='SUBJlang',
+                                 log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log')
