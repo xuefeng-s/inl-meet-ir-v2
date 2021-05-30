@@ -131,3 +131,5 @@ dmypy.json
 
 # Hier können wir unsere eigenen Excludes und Ausnahmen verwalten
 !results.log
+# Sind die Dateien in denen der Classifier gespeichert wird.
+*.plk
