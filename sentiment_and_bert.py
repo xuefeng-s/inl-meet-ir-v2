@@ -265,7 +265,7 @@ class PipelineRunner:
         description = f'\tUsed estimator: {estimator_type}\n'
         description += f'\tUsed transformers: {", ".join(transformer_types_list)}\n'
         description += f'\tColumn: {data_column}\n'
-        self.write_result_to_file(accuracy f1, recall, precision, description)
+        self.write_result_to_file(accuracy, f1, recall, precision, description)
 
     def make_pipeline(self, transformer_list, estimator,
                       data_column, param_gird, classifier_description='',
