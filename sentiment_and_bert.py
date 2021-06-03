@@ -411,11 +411,11 @@ if __name__ == '__main__':
     Cs = np.logspace(-6, 6, 200)
     max_iter = 500
     log_reg_subjopin = LogisticRegression(max_iter=max_iter)
-    pipeline_runner.make_pipeline(transformers_list, log_reg_subjopin, 'SUBJopin01', dict(C=Cs), dir_path=dir_path)
+    #pipeline_runner.make_pipeline(transformers_list, log_reg_subjopin, 'SUBJopin01', dict(C=Cs), dir_path=dir_path)
 
-    pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
-                                 result_for_column='SUBJopin',
-                                 log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log')
+    #pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
+    #                             result_for_column='SUBJopin',
+    #                             log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log')
 
     log_reg_subjlang = LogisticRegression(max_iter=max_iter)
     pipeline_runner.make_pipeline(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path)
