@@ -3,6 +3,7 @@ import re
 import sklearn
 import string
 import nltk
+from nltk import tokenize as tk
 import transformers as ppb
 import pandas as pd
 import numpy as np
@@ -69,6 +70,7 @@ class TextToSentenceTransformer(BaseEstimator, TransformerMixin, ColumnTransform
     def split_text_in_sentences(self, data) -> List[str]:
         texts = data[self.column_to_transform].tolist()
         # delimiter = ['.', '\?', '!']
+        #delimiter = '[?.!(\n\n)(\n \n)(\r\n\r\n)(\r\n \r\n)]'
         delimiter = '[?.!]'
         sentences = list()
         for text in texts:
@@ -107,7 +109,6 @@ class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
     def transform(self, data):
         # Sätze zerstückeln lassen
 
-        from nltk import tokenize as tk
         #dataList = []
         #for s in data[self.column]:
 
