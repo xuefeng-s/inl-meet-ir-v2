@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import List
 
 nltk.download('stopwords')
+nltk.download('punkt')
 
 
 print(pipeline('sentiment-analysis')('we love you'))
@@ -102,6 +103,24 @@ class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
 
     def transform(self, data):
         # Sätze zerstückeln lassen
+
+        from nltk import tokenize as tk
+        #dataList = []
+        #for s in data[self.column]:
+
+            #doppel-linebreaks = aufteilen
+         #   modified = s.replace("\n\n", ".\n\n")
+         #   modified = modified.replace("\n \n", ".\n \n")
+         #   modified = modified.replace("\r\n\r\n", ".\r\n\r\n")
+         #   modified = modified.replace("\r\n \r\n", ".\r\n \r\n")
+         #   split = tk.sent_tokenize(modified)
+
+         #   for x in split:
+                #filtere ein paar verwaiste Punkte raus, die als Nebenprodukte entstehen
+         #       if (x != '.') & (x != '".') & (x != '."') & (x != '\'".'):
+         #           dataList.append(x)
+
+        #ALTE VARIANTE
         dataList = data[self.column].tolist()
         dataList = list((str(s) for s in dataList))
         tokenized = []
@@ -193,6 +212,10 @@ class SentimentOpinionValueCalculatorSingleValueTransformer(BaseEstimator, Trans
                         sentiment_opinion_score = sentiment_opinion_score + self.value_dict[word]
                 sentiment_opinion_score = sentiment_opinion_score / word_count
             sentiment_opinion_scores.append([sentiment_opinion_score])
+
+        # TEST
+        print(len(sentiment_opinion_scores))
+        print(len(features))
         for i in range(len(sentiment_opinion_scores)):
             features[i] = features[i] + (sentiment_opinion_scores[i][0])
         return features
