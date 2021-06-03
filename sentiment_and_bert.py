@@ -15,6 +15,9 @@ from enum import Enum
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.naive_bayes import GaussianNB, BernoulliNB
 from sklearn.pipeline import Pipeline
@@ -281,11 +284,11 @@ class PipelineRunner:
             raise RuntimeError("Don't call this function directly use make_pipeline")
 
         print(f'Starting fitting: {estimator_type}')
-        accuracy = self.fit_and_predict_and_calculate_accuracy_pipe(data_column)
+        accuracy, f1, recall, precision = self.fit_and_predict_and_calculate_accuracy_pipe(data_column)
         description = f'\tUsed estimator: {estimator_type}\n'
         description += f'\tUsed transformers: {", ".join(transformer_types_list)}\n'
         description += f'\tColumn: {data_column}\n'
-        self.write_result_to_file(accuracy, description)
+        self.write_result_to_file(accuracy, f1, recall, precision, description)
 
     def make_pipeline(self, transformer_list, estimator,
                       data_column, param_gird, classifier_description='',
@@ -334,14 +337,24 @@ class PipelineRunner:
         y_pred_pipe = self.pipeline.predict(self.data_test)
         end = time.time()
         print(f'time needed: {end - start}')
-        return accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
 
-    def write_result_to_file(self, accuracy, description):
+        #return accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
+
+        acc = accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
+        f1 = f1_score(self.data_test[data_column].to_numpy(), y_pred_pipe, average='weighted')
+        rec = recall_score(self.data_test[data_column].to_numpy(), y_pred_pipe, average='weighted')
+        precision = precision_score(self.data_test[data_column].to_numpy(), y_pred_pipe, average='weighted')
+        return acc, f1, rec, precision
+
+    def write_result_to_file(self, accuracy, f1, recall, precision, description):
         with open(self.log_file, 'a', encoding='utf-8') as file:
             file.write('#------------------------------------------------------------------------------------------\n')
             file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
             file.write(f'{description}\n')
-            file.write(f'\tAccuracy: {accuracy}\n')
+            file.write(f'\t\tAccuracy for classifier {type}: {accuracy}\n')
+            file.write(f'\t\tF1 Score {type}: {f1}\n')
+            file.write(f'\t\tRecall Score {type}: {recall}\n')
+            file.write(f'\t\tPrecision Score {type}: {precision}\n')
             file.write('#------------------------------------------------------------------------------------------\n')
 
     def predict_data(self, data_file_name, column_to_transform=None, new_column_name=None, batch_size=1, result_for_column='', log_file=f'results/results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'):
@@ -382,16 +395,24 @@ def fit_and_predict_and_calculate_accuracy_pipe(pipe, train_input, train_ouput, 
 
     y_pred_pipe = pipe.predict(test_input)
 
-    return accuracy_score(test_output, y_pred_pipe)
+    acc = accuracy_score(test_output, y_pred_pipe)
+    f1 = f1_score(test_output, y_pred_pipe, average='weighted')
+    rec = recall_score(test_output, y_pred_pipe, average='weighted')
+    precision = precision_score(test_output, y_pred_pipe, average='weighted')
 
+    #return accuracy_score(test_output, y_pred_pipe)
+    return acc, f1, rec, precision
 
-def write_result_to_file(accuracy, type, description):
+def write_result_to_file(accuracy, f1, recall, precision, type, description):
     result_file = 'results/results_with_correct_input.log'
     with open(result_file, 'a', encoding='utf-8') as file:
         file.write('#------------------------------------------------------------------------------------------\n')
         file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
         file.write(f'\t{description}\n')
         file.write(f'\t\tAccuracy for classifier {type}: {accuracy}\n')
+        file.write(f'\t\tF1 Score {type}: {f1}\n')
+        file.write(f'\t\tRecall Score {type}: {recall}\n')
+        file.write(f'\t\tPrecision Score {type}: {precision}\n')
         file.write('#------------------------------------------------------------------------------------------\n')
 
 
@@ -413,11 +434,11 @@ if __name__ == '__main__':
     Cs = np.logspace(-6, 6, 200)
     max_iter = 500
     log_reg_subjopin = LogisticRegression(max_iter=max_iter)
-    pipeline_runner.make_pipeline(transformers_list, log_reg_subjopin, 'SUBJopin01', dict(C=Cs), dir_path=dir_path)
+    #pipeline_runner.make_pipeline(transformers_list, log_reg_subjopin, 'SUBJopin01', dict(C=Cs), dir_path=dir_path)
 
-    pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
-                                 result_for_column='SUBJopin',
-                                 log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log')
+    #pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
+    #                             result_for_column='SUBJopin',
+    #                             log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log')
 
     log_reg_subjlang = LogisticRegression(max_iter=max_iter)
     pipeline_runner.make_pipeline(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path)
