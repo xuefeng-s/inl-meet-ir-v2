@@ -46,9 +46,10 @@ class ColumnTransformer(ColumnUser):
 
 
 class TextToSentenceTransformer(BaseEstimator, TransformerMixin, ColumnTransformer):
-    def __init__(self, column_to_transform, new_column_name):
+    def __init__(self, column_to_transform, new_column_name, filename='logs/text_to_sentence_transformer.error'):
         self.column_to_transform = column_to_transform
         self.new_column_name = new_column_name
+        self.log_file = filename
 
     def set_column_to_transform(self, column_to_transform):
         self.column_to_transform = column_to_transform
@@ -60,7 +61,7 @@ class TextToSentenceTransformer(BaseEstimator, TransformerMixin, ColumnTransform
         return self
 
     def transform(self, data):
-        if self.column_to_transform in data.columns:
+        if self.column_to_transform and self.column_to_transform in data.columns:
             return pd.DataFrame({self.new_column_name: self.split_text_in_sentences(data)})
         else:
             self.log_error(
@@ -69,18 +70,17 @@ class TextToSentenceTransformer(BaseEstimator, TransformerMixin, ColumnTransform
 
     def split_text_in_sentences(self, data) -> List[str]:
         texts = data[self.column_to_transform].tolist()
-        # delimiter = ['.', '\?', '!']
-        #delimiter = '[?.!(\n\n)(\n \n)(\r\n\r\n)(\r\n \r\n)]'
-        delimiter = '[?.!]'
         sentences = list()
         for text in texts:
             # sentences_in_text = [e + delimiter for e in text.split(delimiter) if e]
-            sentences_in_text = [e for e in re.split(delimiter, text) if e]
+            sentences_in_text = [e for e in tk.sent_tokenize(str(text)) if e]
             sentences += sentences_in_text
+
+        print(sentences[0])
         return sentences
 
-    def log_error(self, description, filename='logs/text_to_sentence_transformer.error'):
-        with open(filename, 'a', encoding='utf-8') as file:
+    def log_error(self, description):
+        with open(self.log_file, 'a', encoding='utf-8') as file:
             file.write('#------------------------------------------------------------------------------------------\n')
             file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
             file.write(f'\t{description}\n')
@@ -90,8 +90,9 @@ class TextToSentenceTransformer(BaseEstimator, TransformerMixin, ColumnTransform
 
 class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
 
-    def __init__(self, column):
+    def __init__(self, column, batchsize=10):
         self.column = column
+        self.batch_size = batchsize
         model_class, tokenizer_class, pretrained_weights = (
             ppb.DistilBertModel, ppb.DistilBertTokenizer, 'distilbert-base-uncased')
 
@@ -107,24 +108,23 @@ class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
         return self
 
     def transform(self, data):
-        # Sätze zerstückeln lassen
 
-        #dataList = []
-        #for s in data[self.column]:
+        features = list()
+        row_count = data.shape[0]
+        counter = 0
+        start_index = 0
+        while start_index < row_count:
+            d = data.loc[start_index: start_index + self.batch_size]
+            feature = self.embedding(d)
+            features.extend(feature)
+            counter += 1
+            start_index += self.batch_size + 1 # das plus 1 kommt daher, dass bei den pandas Dataframes start und end index inklusive sind
+            if counter % 10 == 0:
+                print(f'{min(100.0, round(((start_index / row_count) * 100), 2))}% done')
 
-            #doppel-linebreaks = aufteilen
-         #   modified = s.replace("\n\n", ".\n\n")
-         #   modified = modified.replace("\n \n", ".\n \n")
-         #   modified = modified.replace("\r\n\r\n", ".\r\n\r\n")
-         #   modified = modified.replace("\r\n \r\n", ".\r\n \r\n")
-         #   split = tk.sent_tokenize(modified)
+        return (data, features)
 
-         #   for x in split:
-                #filtere ein paar verwaiste Punkte raus, die als Nebenprodukte entstehen
-         #       if (x != '.') & (x != '".') & (x != '."') & (x != '\'".'):
-         #           dataList.append(x)
-
-        #ALTE VARIANTE
+    def embedding(self, data):
         dataList = data[self.column].tolist()
         dataList = list((str(s) for s in dataList))
         tokenized = []
@@ -132,10 +132,6 @@ class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
         for s in dataList:
             t = self.tokenizer.encode(s, add_special_tokens=True)
             tokenized.append(t)
-            if len(t) > 500:
-                print('wtf oO')
-                print(s)
-                print(t)
 
         # Padding hinzufügen
         max_len = 0
@@ -162,7 +158,7 @@ class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
         # nur die erste Spalte auslesen = von BERT geschriebene Kennwerte
         features = output[0][:, 0, :].numpy()
 
-        return (data, features)
+        return features
 
 
 class PreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUser):
@@ -177,6 +173,7 @@ class PreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUser):
         return self
 
     def transform(self, data_and_features, y=None):
+        print('Starting with preprocessing')
         data, features = data_and_features
         sentences = data[self.column].tolist()
         sentences = list((str(s) for s in sentences))
@@ -205,8 +202,11 @@ class SentimentOpinionValueCalculatorSingleValueTransformer(BaseEstimator, Trans
         return self
 
     def transform(self, sentences_and_features):
+        print('Starting with sentiment value calculation')
         sentiment_opinion_scores = []
         sentences, features = sentences_and_features
+        counter = 0
+        count_of_sentences = len(sentences)
         for sentence in sentences:
             word_count = len(sentence)
             sentiment_opinion_score = 0
@@ -215,13 +215,19 @@ class SentimentOpinionValueCalculatorSingleValueTransformer(BaseEstimator, Trans
                     if word in self.value_dict:
                         sentiment_opinion_score = sentiment_opinion_score + self.value_dict[word]
                 sentiment_opinion_score = sentiment_opinion_score / word_count
+            else:
+                sentiment_opinion_score = 0
             sentiment_opinion_scores.append([sentiment_opinion_score])
+            counter += 1
+            if counter % 10 == 0:
+                print(f'{min(100.0, round(((counter / count_of_sentences) * 100), 2))}% of sentences done')
 
         # TEST
         print(len(sentiment_opinion_scores))
         print(len(features))
         for i in range(len(sentiment_opinion_scores)):
-            features[i] = features[i] + (sentiment_opinion_scores[i][0])
+            features[i] = features[i] + (sentiment_opinion_scores[i])
+        print('starting with classification')
         return features
 
 
@@ -256,15 +262,7 @@ class PipelineRunner:
         self.dict_file = dict_file
         self.log_file = log_file
         self.data_training = pd.read_excel(training_file, sheet_name='sentences')
-        self.data_training.drop(
-            ['SUBJindl', 'SUBJsrce', 'SUBJrhet', 'SUBJster', 'SUBJspee', 'SUBJinspe', 'SUBJprop', 'SUBJpolit'],
-            axis=1,
-            inplace=True)
         self.data_test = pd.read_excel(test_file, sheet_name='sentences')
-        self.data_test.drop(
-            ['SUBJindl', 'SUBJsrce', 'SUBJrhet', 'SUBJster', 'SUBJspee', 'SUBJinspe', 'SUBJprop', 'SUBJpolit'],
-            axis=1,
-            inplace=True)
         self.pipeline = None
         self.transformer_name_dict = {
                                       TextToSentenceTransformer.__name__: "ts",
@@ -352,10 +350,10 @@ class PipelineRunner:
             file.write('#------------------------------------------------------------------------------------------\n')
             file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
             file.write(f'{description}\n')
-            file.write(f'\t\tAccuracy for classifier {type}: {accuracy}\n')
-            file.write(f'\t\tF1 Score {type}: {f1}\n')
-            file.write(f'\t\tRecall Score {type}: {recall}\n')
-            file.write(f'\t\tPrecision Score {type}: {precision}\n')
+            file.write(f'\t\tAccuracy: {accuracy}\n')
+            file.write(f'\t\tF1 Score: {f1}\n')
+            file.write(f'\t\tRecall Score: {recall}\n')
+            file.write(f'\t\tPrecision Score: {precision}\n')
             file.write('#------------------------------------------------------------------------------------------\n')
 
     def predict_data(self, data_file_name, column_to_transform=None, new_column_name=None, batch_size=1, result_for_column='', log_file=f'results/results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'):
@@ -371,24 +369,36 @@ class PipelineRunner:
                 if issubclass(type(obj), ColumnUser):
                     obj.set_column_to_use(new_column_name)
 
+        # Sollte so jetzt funktionieren, da Bert jetzt intern schon Stückweise die Daten einliest, falls nicht  die Zeilen hier auskommentieren und die auskommentierten einkommentieren
+        output = self.pipeline.predict(data_validation)
+
         with open(log_file, 'a', encoding='utf-8') as f:
             f.write('#-------------------------------------------------')
             f.write(f'result for column {result_for_column}:\n')
-
-        row_count = data_validation.shape[0]
-        counter = 0
-
-        while counter * batch_size < row_count:
-
-            output = self.pipeline.predict(data_validation.loc[counter * batch_size: (counter + 1) * batch_size])
-            with open(log_file, 'a', encoding='utf-8') as f:
-                f.write(f'{output.tolist()}')
-                f.write('\n')
-            counter += 1
-
-
-        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(f'{output.tolist()}')
             f.write('#-------------------------------------------------\n\n\n\n\n')
+
+        # with open(log_file, 'a', encoding='utf-8') as f:
+        #     f.write('#-------------------------------------------------')
+        #     f.write(f'result for column {result_for_column}:\n')
+        #
+        # row_count = data_validation.shape[0]
+        # counter = 0
+        # start_index = 0
+        #
+        # while start_index < row_count:
+        #
+        #     output = self.pipeline.predict(data_validation.loc[start_index: start_index + batch_size])
+        #     with open(log_file, 'a', encoding='utf-8') as f:
+        #         f.write(f'{output.tolist()}')
+        #         f.write('\n')
+        #     start_index += batch_size + 1 # das plus 1 kommt daher, dass bei den pandas Dataframes start und end index inklusive sind
+        #     counter += 1
+        #     if counter % 10 == 0:
+        #         print(f'{min(100.0, round((((start_index) / row_count) * 100), 2))}% done')
+        #
+        # with open(log_file, 'a', encoding='utf-8') as f:
+        #     f.write('#-------------------------------------------------\n\n\n\n\n')
 
 
 def fit_and_predict_and_calculate_accuracy_pipe(pipe, train_input, train_ouput, test_input, test_output):
@@ -403,6 +413,7 @@ def fit_and_predict_and_calculate_accuracy_pipe(pipe, train_input, train_ouput, 
 
     #return accuracy_score(test_output, y_pred_pipe)
     return acc, f1, rec, precision
+
 
 def write_result_to_file(accuracy, f1, recall, precision, type, description):
     result_file = 'results/results_with_correct_input.log'
@@ -443,6 +454,7 @@ if __name__ == '__main__':
 
     log_reg_subjlang = LogisticRegression(max_iter=max_iter)
     pipeline_runner.make_pipeline(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path)
-    pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
-                                 result_for_column='SUBJlang',
-                                 log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log')
+
+    # pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
+    #                              result_for_column='SUBJlang',
+    #                              log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log')
