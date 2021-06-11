@@ -433,9 +433,9 @@ if __name__ == '__main__':
     # dict_file = dir_path + 'AFINN-both-abs.csv'
     dict_file = dir_path + 'sentiment_dict.csv'
 
-    training_file = dir_path + 'Trainingdata_train.xlsx'
+    training_file = dir_path + 'datasetSentimentSRF_train.xlsx'
 
-    test_file = dir_path + 'Trainingdata_test.xlsx'
+    test_file = dir_path + 'datasetSentimentSRF_test.xlsx'
 
     transformers_list = [TextToSentenceTransformer('text', 'Sentence'),
                          BertTransformer('Sentence'),
