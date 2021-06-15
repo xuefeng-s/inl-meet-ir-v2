@@ -25,6 +25,7 @@ from sklearn.pipeline import Pipeline
 from transformers import pipeline
 from datetime import datetime
 from typing import List
+from scipy import stats as stats
 
 nltk.download('stopwords')
 nltk.download('punkt')
@@ -143,7 +144,6 @@ class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
 
         # Maske erstellen, um das Padding bei der Verarbeitung zu filtern
         mask = np.where(padded != 0, 1, 0)
-        mask.shape
 
         # mache padded Array und Maske zu einem Tensor
         # Tensor = mehrdimensionale Matrix mit einheitlichem Datentyp
@@ -328,6 +328,23 @@ class PipelineRunner:
     def save_classifier(self, filename):
         joblib.dump(self.pipeline, filename)
 
+    def conduct_ttest(self, predicted, validation):
+        print("Preparing for t-test.")
+        print("Collating prediction results.")
+        #results = right/wrong
+        prediction_results = ( predicted[i] == validation[i] for i in range(0, len(predicted)) )
+        print("Acquiring baseline accuracy from pattern3 classifier")
+        baseline_results = 0.5599 #Placeholder value
+
+        #DAS IST DIE MAGIC LINE
+        tstatistic, pvalue = stats.ttest_1samp(prediction_results, baseline_results, alternative='greater')
+        if pvalue < 0.05:
+           print("Success: Classifier significantly outperforms baseline")
+           return 1
+        else:
+            print("Failure: Null-Hypotheses not rejectable")
+            return 0
+
     def fit_and_predict_and_calculate_accuracy_pipe(self, data_column):
         print('Start fiting')
         self.pipeline.fit(self.data_training, self.data_training[data_column].to_numpy())
@@ -338,6 +355,9 @@ class PipelineRunner:
         print(f'time needed: {end - start}')
 
         #return accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
+
+        #Perform t-test to compare with a baseline classifier
+        self.conduct_ttest(y_pred_pipe, self.data_test[data_column].to_numpy())
 
         acc = accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
         f1 = f1_score(self.data_test[data_column].to_numpy(), y_pred_pipe, average='weighted')
@@ -453,7 +473,7 @@ if __name__ == '__main__':
     #                             log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log')
 
     log_reg_subjlang = LogisticRegression(max_iter=max_iter)
-    pipeline_runner.make_pipeline(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path)
+    #pipeline_runner.make_pipeline(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path)
 
     # pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
     #                              result_for_column='SUBJlang',
