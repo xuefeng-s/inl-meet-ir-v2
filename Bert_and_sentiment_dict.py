@@ -328,22 +328,51 @@ class PipelineRunner:
     def save_classifier(self, filename):
         joblib.dump(self.pipeline, filename)
 
-    def conduct_ttest(self, predicted, validation):
+    def conduct_ttest(self, predicted, validation, baseline_acc=0.5599):
         print("Preparing for t-test.")
         print("Collating prediction results.")
         #results = right/wrong
         prediction_results = ( predicted[i] == validation[i] for i in range(0, len(predicted)) )
-        print("Acquiring baseline accuracy from pattern3 classifier")
-        baseline_results = 0.5599 #Placeholder value
 
         #DAS IST DIE MAGIC LINE
-        tstatistic, pvalue = stats.ttest_1samp(prediction_results, baseline_results, alternative='greater')
+        print("Starting test")
+        tstatistic, pvalue = stats.ttest_1samp(prediction_results, baseline_acc, alternative='greater')
+        print("Calculated pvalue:"+"pvalue")
         if pvalue < 0.05:
            print("Success: Classifier significantly outperforms baseline")
            return 1
         else:
-            print("Failure: Null-Hypotheses not rejectable")
+            print("Failure: Null-Hypothesis not rejectable")
             return 0
+
+#    def baseline_classifier(self, data_column):
+#        #pattern3
+#        from pattern.en import sentiment
+
+#        # Datensätze vorbereiten
+#        data_test = self.data_test[data_column].to_numpy()
+#        sentences = data_test['Sentence'].tolist()
+#        sentences = list((str(s) for s in sentences))
+
+#        # Datenframe mit den Sätzen und deren Sentiment- und Opinion-Werte erstellen
+#        # df = pd.DataFrame({"sentences" : sentences, "sentiment label" : data_test['SUBJlang01'], "opinion label" : data_test['SUBJopin01']})
+#        df = pd.DataFrame({"sentences": sentences, "sentiment label": data_test['SUBJlang01']})
+
+#        # pattern3 Werte ausrechnen
+#        df['sentiment'] = df['sentences'].apply(lambda x: sentiment(x)[0])
+#        # df['subjectivity'] = df['sentences'].apply(lambda x: sentiment(x)[1])
+
+#        # Erster Wert: sentiment 1 bis -1 für positiv bis negativ
+#        # Zweiter Wert: subjectivity 0 bis 1 für objectiv bis subjectiv
+#        df['sentiment value'] = 0
+#        df.loc[df.sentiment > 0.25, 'sentiment value'] = 1
+#        df.loc[df.sentiment < -0.25, 'sentiment value'] = 1
+#        # df['opinion value'] = 0
+#        # df.loc[df.subjectivity>0.50, 'opinion value']=1
+#        # df.style.background_gradient(cmap='RdYlGn', axis=None, low=0.4, high=0.4)
+#        acc = accuracy_score(df['sentiment label'], df['sentiment value'])
+#        print("accuracy pattern3 sentiment: {0}".format(acc))
+#        return acc
 
     def fit_and_predict_and_calculate_accuracy_pipe(self, data_column):
         print('Start fiting')
@@ -357,6 +386,7 @@ class PipelineRunner:
         #return accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
 
         #Perform t-test to compare with a baseline classifier
+        #baseline_acc = baseline_classifier(data_column)
         self.conduct_ttest(y_pred_pipe, self.data_test[data_column].to_numpy())
 
         acc = accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
