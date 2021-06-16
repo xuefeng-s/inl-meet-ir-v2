@@ -331,13 +331,23 @@ class PipelineRunner:
     def conduct_ttest(self, predicted, validation, baseline_acc=0.5599):
         print("Preparing for t-test.")
         print("Collating prediction results.")
+
         #results = right/wrong
-        prediction_results = ( predicted[i] == validation[i] for i in range(0, len(predicted)) )
+        prediction_results = []
+        acc = 0
+        for i in range(0, len(predicted)):
+            if predicted[i] == validation[i]:
+                prediction_results.append(1)
+                acc = acc + 1
+            else:
+                prediction_results.append(0)
+        acc = acc / len(prediction_results)
+        print("Prediction accuracy calculated as " + str(acc))
 
         #DAS IST DIE MAGIC LINE
         print("Starting test")
         tstatistic, pvalue = stats.ttest_1samp(prediction_results, baseline_acc, alternative='greater')
-        print("Calculated pvalue:"+"pvalue")
+        print("Calculated pvalue: "+ str(pvalue))
         if pvalue < 0.05:
            print("Success: Classifier significantly outperforms baseline")
            return 1
@@ -451,10 +461,12 @@ class PipelineRunner:
         #     f.write('#-------------------------------------------------\n\n\n\n\n')
 
 
-def fit_and_predict_and_calculate_accuracy_pipe(pipe, train_input, train_ouput, test_input, test_output):
+def fit_and_predict_and_calculate_accuracy_pipe(self, pipe, train_input, train_ouput, test_input, test_output):
     pipe.fit(train_input, train_ouput)
 
     y_pred_pipe = pipe.predict(test_input)
+
+    self.conduct_ttest(y_pred_pipe, test_output)
 
     acc = accuracy_score(test_output, y_pred_pipe)
     f1 = f1_score(test_output, y_pred_pipe, average='weighted')
@@ -483,9 +495,9 @@ if __name__ == '__main__':
     # dict_file = dir_path + 'AFINN-both-abs.csv'
     dict_file = dir_path + 'sentiment_dict.csv'
 
-    training_file = dir_path + 'Trainingdata_train.xlsx'
+    training_file = dir_path + 'datasetSentimentSRF_train.xlsx'
 
-    test_file = dir_path + 'Trainingdata_test.xlsx'
+    test_file = dir_path + 'datasetSentimentSRF_test.xlsx'
 
     transformers_list = [TextToSentenceTransformer('text', 'Sentence'),
                          BertTransformer('Sentence'),
@@ -503,8 +515,8 @@ if __name__ == '__main__':
     #                             log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log')
 
     log_reg_subjlang = LogisticRegression(max_iter=max_iter)
-    #pipeline_runner.make_pipeline(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path)
+    pipeline_runner.make_pipeline(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path)
 
-    # pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
-    #                              result_for_column='SUBJlang',
-    #                              log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log')
+    pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC_Dataset_Sample.csv',
+                                  result_for_column='SUBJlang',
+                                  log_file=dir_path + f'results/mbfc_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log')
