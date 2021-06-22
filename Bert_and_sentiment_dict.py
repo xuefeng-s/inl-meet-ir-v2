@@ -328,7 +328,7 @@ class PipelineRunner:
     def save_classifier(self, filename):
         joblib.dump(self.pipeline, filename)
 
-    def conduct_ttest(self, predicted, validation, baseline_acc=0.5599):
+    def conduct_ttest(self, predicted, validation, baseline_acc=0.5347):
         print("Preparing for t-test.")
         print("Collating prediction results.")
 
@@ -355,35 +355,6 @@ class PipelineRunner:
             print("Failure: Null-Hypothesis not rejectable")
             return 0
 
-#    def baseline_classifier(self, data_column):
-#        #pattern3
-#        from pattern.en import sentiment
-
-#        # Datensätze vorbereiten
-#        data_test = self.data_test[data_column].to_numpy()
-#        sentences = data_test['Sentence'].tolist()
-#        sentences = list((str(s) for s in sentences))
-
-#        # Datenframe mit den Sätzen und deren Sentiment- und Opinion-Werte erstellen
-#        # df = pd.DataFrame({"sentences" : sentences, "sentiment label" : data_test['SUBJlang01'], "opinion label" : data_test['SUBJopin01']})
-#        df = pd.DataFrame({"sentences": sentences, "sentiment label": data_test['SUBJlang01']})
-
-#        # pattern3 Werte ausrechnen
-#        df['sentiment'] = df['sentences'].apply(lambda x: sentiment(x)[0])
-#        # df['subjectivity'] = df['sentences'].apply(lambda x: sentiment(x)[1])
-
-#        # Erster Wert: sentiment 1 bis -1 für positiv bis negativ
-#        # Zweiter Wert: subjectivity 0 bis 1 für objectiv bis subjectiv
-#        df['sentiment value'] = 0
-#        df.loc[df.sentiment > 0.25, 'sentiment value'] = 1
-#        df.loc[df.sentiment < -0.25, 'sentiment value'] = 1
-#        # df['opinion value'] = 0
-#        # df.loc[df.subjectivity>0.50, 'opinion value']=1
-#        # df.style.background_gradient(cmap='RdYlGn', axis=None, low=0.4, high=0.4)
-#        acc = accuracy_score(df['sentiment label'], df['sentiment value'])
-#        print("accuracy pattern3 sentiment: {0}".format(acc))
-#        return acc
-
     def fit_and_predict_and_calculate_accuracy_pipe(self, data_column):
         print('Start fiting')
         self.pipeline.fit(self.data_training, self.data_training[data_column].to_numpy())
@@ -397,7 +368,7 @@ class PipelineRunner:
 
         #Perform t-test to compare with a baseline classifier
         #baseline_acc = baseline_classifier(data_column)
-        self.conduct_ttest(y_pred_pipe, self.data_test[data_column].to_numpy())
+        #self.conduct_ttest(y_pred_pipe, self.data_test[data_column].to_numpy())
 
         acc = accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
         f1 = f1_score(self.data_test[data_column].to_numpy(), y_pred_pipe, average='weighted')
@@ -466,7 +437,7 @@ def fit_and_predict_and_calculate_accuracy_pipe(self, pipe, train_input, train_o
 
     y_pred_pipe = pipe.predict(test_input)
 
-    self.conduct_ttest(y_pred_pipe, test_output)
+    #self.conduct_ttest(y_pred_pipe, test_output)
 
     acc = accuracy_score(test_output, y_pred_pipe)
     f1 = f1_score(test_output, y_pred_pipe, average='weighted')
