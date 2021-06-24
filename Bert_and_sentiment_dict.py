@@ -283,7 +283,8 @@ class PipelineRunner:
         self.estimator_name_dict = {
             LogisticRegression.__name__: 'log_reg',
             GaussianNB.__name__: 'gau_nb',
-            BernoulliNB.__name__: 'ber_nb'
+            BernoulliNB.__name__: 'ber_nb',
+            sklearn.svm.SVC.__name__: 'svc'
         }
 
     def prepare_pipeline(self, data_column, estimator_type, transformer_types_list):
@@ -447,33 +448,41 @@ class PipelineRunner:
         df2['prediction'] = df['prediction']
         df2['confidence'] = df['max confidence']
 
-        result_list = list()
-        threshholds = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
-        for threshhold in threshholds:
-            # alle Zeilen aussortieren, die eine confidence unter 60 haben
-            df3 = pd.DataFrame({'real sentiment label': [100], 'prediction': [100], 'confidence': [100]})
-            for ind in df2.index:
-                if (df2['confidence'][ind]) > threshhold:
-                    item = pd.DataFrame({'real sentiment label': [df2['real sentiment label'][ind]],
-                                         'prediction': [df2['prediction'][ind]],
-                                         'confidence': [df2['confidence'][ind]]})
-                    df3 = df3.append(item, ignore_index=True)
+        # df und df2 in die excel speichern
+        df.to_excel(f'data/results/max_confidence_{data_column}.xlsx', index=False)
+        df2.to_excel(f'data/results/classes_and_confidence_{data_column}.xlsx', index=False)
 
+        result_list = list()
+        print("Entries before filtering for confidence: " + str(df2.shape[0]))
+        thresholds = [0.6, 0.7, 0.8]
+        for threshold in thresholds:
+            df3 = self.filter_threshold(df2, threshold)
                     # dummy Zeile wieder löschen
             df3.drop(df3.head(1).index, inplace=True)
 
-            # zum Schluss alles in die excel speichern
-            # df.to_excel(f'data/results/max_confidence_proba_{threshhold}_{data_column}.xlsx', index=False)
-            # df2.to_excel(f'data/results/classes_and_confidence_proba__{threshhold}_{data_column}.xlsx', index=False)
-            # df3.to_excel(f'data/results/confidence_proba__{threshhold}_{data_column}.xlsx', index=False)
+            print("Filtered for confidence " + str(threshold) + "+. Remaining Entries: " + str(df3.shape[0]))
+
+            #die jeweiligen df3 speichern
+            df3.to_excel(f'data/results/confidence{threshold}_{data_column}.xlsx', index=False)
 
             acc = accuracy_score(df3['real sentiment label'], df3['prediction'])
             f1 = f1_score(df3['real sentiment label'], df3['prediction'], average='weighted')
             rec = recall_score(df3['real sentiment label'], df3['prediction'], average='weighted')
             precision = precision_score(df3['real sentiment label'], df3['prediction'], average='weighted')
-            result_list.append((threshhold, acc, f1, rec, precision))
+            result_list.append((threshold, acc, f1, rec, precision))
 
         return result_list
+
+    def filter_threshold(self, dataframe, threshold):
+        # alle Zeilen aussortieren, die eine confidence unter dem threshold haben
+        df_new = pd.DataFrame({'real sentiment label': [100], 'prediction': [100], 'confidence': [100]})
+        for i in dataframe.index:
+            if (dataframe['confidence'][i]) >threshold:
+                item = pd.DataFrame({'real sentiment label': [dataframe['real sentiment label'][i]],
+                                        'prediction': [dataframe['prediction'][i]],
+                                        'confidence': [dataframe['confidence'][i]]})
+                df_new = df_new.append(item, ignore_index=True)
+        return df_new
 
     def safe_prediction(self, prediction, data_column):
         pred_data_frame = self.data_test.copy(deep=True)
@@ -606,9 +615,10 @@ if __name__ == '__main__':
     #                              log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log',
     #                              new_column_name='sentences')
 
-    log_reg_subjlang = LogisticRegression(max_iter=max_iter)
-    pipeline_runner.make_pipeline(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
-    #
+    #log_reg_subjlang = LogisticRegression(max_iter=max_iter)
+    log_reg_subjlang = sklearn.svm.SVC()
+    pipeline_runner.make_pipeline_confidence(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
+
     # pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC-sentences-Dataset.csv',
     #                              result_for_column='SUBJlang',
     #                              log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log',
