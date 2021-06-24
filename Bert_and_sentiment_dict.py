@@ -434,8 +434,14 @@ class PipelineRunner:
         df = pd.DataFrame(data=y_pred_pipe, columns=['confidence class 0', 'confidence class 1'])
 
         # predicte die Klasse für jedes Item
-        y_pred_pipe2 = self.pipeline.predict(self.data_test)
-        df['prediction'] = y_pred_pipe2
+        class_predictions = list()
+        for index, row in df.iterrows():
+            if row['confidence class 0'] >= row['confidence class 1']:
+                class_predictions.append(0)
+            else:
+                class_predictions.append(1)
+
+        df['prediction'] = class_predictions
 
         # schreibe die confidence der predicted class in die Spalte max confidence
         df['max confidence'] = df[['confidence class 0', 'confidence class 1']].max(axis=1)
@@ -605,7 +611,7 @@ if __name__ == '__main__':
                          SentimentOpinionValueCalculatorSingleValueTransformer(dict_file)]
 
     pipeline_runner = PipelineRunner(dict_file, training_file, test_file, log_file=dir_path + 'results/results_for_different_threshholds.log')
-    Cs = np.logspace(-6, 6, 200)
+    Cs = np.logspace(0.0001, 6, 100)
     max_iter = 500
     # bert = BertTransformer('Sentence', batchsize=100)
     # bert.transform(pd.read_excel('data/datasetSingleSentences.xlsx', sheet_name='Sheet1'))
@@ -617,9 +623,19 @@ if __name__ == '__main__':
     #                              log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log',
     #                              new_column_name='sentences')
 
-    #log_reg_subjlang = LogisticRegression(max_iter=max_iter)
-    log_reg_subjlang = GaussianNB()
+    log_reg_subjlang = LogisticRegression(max_iter=max_iter)
     pipeline_runner.make_pipeline_confidence(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
+
+    #gnb_subjlang = GaussianNB()
+    #pipeline_runner.make_pipeline_confidence(transformers_list, gnb_subjlang, 'SUBJlang01', dict(var_smoothing=Cs), dir_path=dir_path, classifier_description='probability')
+
+    # bnb_subjlang = BernoulliNB()
+    # pipeline_runner.make_pipeline_confidence(transformers_list, bnb_subjlang, 'SUBJlang01', dict(alpha=Cs),
+    #                                          dir_path=dir_path, classifier_description='probability')
+
+    # svm_subjlang = sklearn.svm.SVC(kernel='linear')
+    # pipeline_runner.make_pipeline_confidence(transformers_list, svm_subjlang, 'SUBJlang01', dict(C=Cs),
+    #                                          dir_path=dir_path, classifier_description='probability')
 
     # pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC-sentences-Dataset.csv',
     #                              result_for_column='SUBJlang',
