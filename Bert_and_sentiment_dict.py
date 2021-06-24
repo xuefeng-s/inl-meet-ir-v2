@@ -306,12 +306,12 @@ class PipelineRunner:
 
         print(f'Starting fitting: {estimator_type}')
         result = self.fit_and_predict_and_calculate_confidence_pipe(data_column)
-        for threshhold, accuracy, f1, recall, precision in result:
+        for threshhold, accuracy, f1, recall, precision, num_all_entries, num_entries in result:
             description = f'\tUsed estimator: {estimator_type}\n'
             description += f'\tUsed transformers: {", ".join(transformer_types_list)}\n'
             # description += f'\tonly 60percent confidence \n'
             description += f'\tColumn: {data_column}\n'
-            self.write_result_to_file_confidence(threshhold, accuracy, f1, recall, precision, description)
+            self.write_result_to_file_confidence(threshhold, accuracy, f1, recall, precision, description, num_all_entries, num_entries)
 
     def make_pipeline(self, transformer_list, estimator,
                       data_column, param_gird, classifier_description='',
@@ -469,7 +469,7 @@ class PipelineRunner:
             f1 = f1_score(df3['real sentiment label'], df3['prediction'], average='weighted')
             rec = recall_score(df3['real sentiment label'], df3['prediction'], average='weighted')
             precision = precision_score(df3['real sentiment label'], df3['prediction'], average='weighted')
-            result_list.append((threshold, acc, f1, rec, precision))
+            result_list.append((threshold, acc, f1, rec, precision, df2.shape[0], df3.shape[0]))
 
         return result_list
 
@@ -501,11 +501,13 @@ class PipelineRunner:
             file.write(f'\t\tPrecision Score: {precision}\n')
             file.write('#------------------------------------------------------------------------------------------\n')
 
-    def write_result_to_file_confidence(self, threshhold, accuracy, f1, recall, precision, description,):
+    def write_result_to_file_confidence(self, threshhold, accuracy, f1, recall, precision, description, num_all_entries, num_entries):
         with open(self.log_file, 'a', encoding='utf-8') as file:
             file.write('#------------------------------------------------------------------------------------------\n')
             file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
             file.write(f'for threshhold: {threshhold}\n')
+            file.write(f'Dropped Entries: {num_all_entries - num_entries}\n')
+            file.write(f'Remaining Entries: {num_entries} of {num_all_entries}\n')
             file.write(f'{description}\n')
             file.write(f'\t\tAccuracy: {accuracy}\n')
             file.write(f'\t\tF1 Score: {f1}\n')
@@ -616,7 +618,7 @@ if __name__ == '__main__':
     #                              new_column_name='sentences')
 
     #log_reg_subjlang = LogisticRegression(max_iter=max_iter)
-    log_reg_subjlang = sklearn.svm.SVC()
+    log_reg_subjlang = GaussianNB()
     pipeline_runner.make_pipeline_confidence(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
 
     # pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC-sentences-Dataset.csv',
