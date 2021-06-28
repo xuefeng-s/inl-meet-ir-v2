@@ -263,22 +263,18 @@ class PipelineRunner:
         self.dict_file = dict_file
         self.log_file = log_file
         self.data_training = pd.read_excel(training_file, sheet_name='sentences')
-        # self.data_training.drop(
-        #     ['SUBJindl', 'SUBJsrce', 'SUBJrhet', 'SUBJster', 'SUBJspee', 'SUBJinspe', 'SUBJprop', 'SUBJpolit'],
-        #     axis=1,
-        #     inplace=True)
         self.data_test = pd.read_excel(test_file, sheet_name='sentences')
-        # self.data_test.drop(
-        #     ['SUBJindl', 'SUBJsrce', 'SUBJrhet', 'SUBJster', 'SUBJspee', 'SUBJinspe', 'SUBJprop', 'SUBJpolit'],
-        #     axis=1,
-        #     inplace=True)
         self.pipeline = None
+        self.estimator = None
+        self.classifier_file = None
         self.transformer_name_dict = {
                                       TextToSentenceTransformer.__name__: "ts",
                                       BertTransformer.__name__: "bert",
                                       PreprocessorTransformer.__name__: "prepro",
                                       SentimentOpinionValueCalculatorSingleValueTransformer.__name__: "sentval",
-                                      SentimentOpinionValueCounterTransformer.__name__: "sentcount"
+                                      SentimentOpinionValueCounterTransformer.__name__: "sentcount",
+                                      sklearn.preprocessing.StandardScaler.__name__: "std-scaler",
+                                      sklearn.preprocessing.MinMaxScaler.__name__: "minmax"
                                       }
         self.estimator_name_dict = {
             LogisticRegression.__name__: 'log_reg',
@@ -306,33 +302,27 @@ class PipelineRunner:
 
         print(f'Starting fitting: {estimator_type}')
         result = self.fit_and_predict_and_calculate_confidence_pipe(data_column)
-        for threshhold, accuracy, f1, recall, precision, num_all_entries, num_entries in result:
+        for threshold, accuracy, f1, recall, precision, num_all_entries, num_entries in result:
             description = f'\tUsed estimator: {estimator_type}\n'
             description += f'\tUsed transformers: {", ".join(transformer_types_list)}\n'
             # description += f'\tonly 60percent confidence \n'
             description += f'\tColumn: {data_column}\n'
-            self.write_result_to_file_confidence(threshhold, accuracy, f1, recall, precision, description, num_all_entries, num_entries)
+            self.write_result_to_file_confidence(threshold, accuracy, f1, recall, precision, description, num_all_entries, num_entries)
 
     def make_pipeline(self, transformer_list, estimator,
                       data_column, param_gird, classifier_description='',
                       dir_path='', force_fitting=False):
 
-        classifier_file = self.create_pipe_line_name(transformer_list, estimator, classifier_description, data_column, dir_path)
-        if force_fitting or not os.path.exists(classifier_file):
+        self.classifier_file = self.create_pipe_line_name(transformer_list, estimator, classifier_description, data_column, dir_path)
+        if force_fitting or not os.path.exists(self.classifier_file):
             print('No classfier found for your configuration or force_fitting=True. Creating new one and saving it.')
-            clf = GridSearchCV(estimator=estimator, param_grid=param_gird, n_jobs=-1, scoring='accuracy')
-
-            self.pipeline = sklearn.pipeline.Pipeline(
-                [(f'stage: {self.transformer_name_dict[type(transformer_list[index]).__name__]}',
-                  transformer_list[index]) for index in range(len(transformer_list))] +
-                [('clf', clf)]
-            )
+            self.estimator = GridSearchCV(estimator=estimator, param_grid=param_gird, n_jobs=-1, scoring='accuracy')
+            self.create_pipe_line(transformer_list)
             self.prepare_pipeline(data_column, type(estimator).__name__, [type(t).__name__ for t in transformer_list])
-            print(f'Saving classifier to file {classifier_file}')
-            self.save_classifier(classifier_file)
         else:
-            print(f'Classifier exists. Loaded from file {classifier_file}')
-            self.load_classifier(classifier_file)
+            print(f'Classifier exists. Loaded from file {self.classifier_file}')
+            self.load_classifier(self.classifier_file)
+            self.create_pipe_line(transformer_list)
 
         return self.pipeline
 
@@ -340,25 +330,25 @@ class PipelineRunner:
                                 data_column, param_gird, classifier_description='',
                                 dir_path='', force_fitting=False):
 
-        classifier_file = self.create_pipe_line_name(transformer_list, estimator, classifier_description, data_column, dir_path)
-        if force_fitting or not os.path.exists(classifier_file):
+        self.classifier_file = self.create_pipe_line_name(transformer_list, estimator, classifier_description, data_column, dir_path)
+        if force_fitting or not os.path.exists(self.classifier_file):
             print('No classfier found for your configuration or force_fitting=True. Creating new one and saving it.')
-            clf = GridSearchCV(estimator=estimator, param_grid=param_gird, n_jobs=-1, scoring='accuracy')
-
-            self.pipeline = sklearn.pipeline.Pipeline(
-                [(f'stage: {self.transformer_name_dict[type(transformer_list[index]).__name__]}',
-                  transformer_list[index]) for index in range(len(transformer_list))] +
-                [('clf', clf)]
-            )
+            self.estimator = GridSearchCV(estimator=estimator, param_grid=param_gird, n_jobs=-1, scoring='accuracy')
+            self.create_pipe_line(transformer_list)
             self.prepare_pipeline_confidence(data_column, type(estimator).__name__, [type(t).__name__ for t in transformer_list])
-            print(f'Saving classifier to file {classifier_file}')
-            self.save_classifier(classifier_file)
         else:
-            print(f'Classifier exists. Loaded from file {classifier_file}')
-            self.load_classifier(classifier_file)
+            print(f'Classifier exists. Loaded from file {self.classifier_file}')
+            self.load_classifier(self.classifier_file)
+            self.create_pipe_line(transformer_list)
 
         return self.pipeline
 
+    def create_pipe_line(self, transformer_list):
+        self.pipeline = sklearn.pipeline.Pipeline(
+            [(f'stage: {self.transformer_name_dict[type(transformer_list[index]).__name__]}',
+              transformer_list[index]) for index in range(len(transformer_list))] +
+            [('clf', self.estimator)]
+        )
 
     def create_pipe_line_name(self, transformer_list, estimator, classifier_description, data_column, dir_path=''):
         names = [self.transformer_name_dict[type(transformer).__name__] for transformer in transformer_list]
@@ -367,13 +357,13 @@ class PipelineRunner:
             description = '_' + classifier_description
         if dir_path and not dir_path.endswith('/') and not dir_path.endswith('\\'):
             dir_path += '/'
-        return dir_path + f'classifier/{self.estimator_name_dict[type(estimator).__name__]}_with_{"_".join(names)}{description}_{data_column}_pipeline.joblib.plk'
+        return dir_path + f'classifier/{self.estimator_name_dict[type(estimator).__name__]}_using_{"_".join(names)}{description}_{data_column}_pipeline.joblib.plk'
 
     def load_classifier(self, filename):
-        self.pipeline = joblib.load(filename)
+        self.estimator = joblib.load(filename)
 
     def save_classifier(self, filename):
-        joblib.dump(self.pipeline, filename)
+        joblib.dump(self.estimator, filename)
 
     def conduct_ttest(self, predicted, validation, baseline_acc=0.5347):
         print("Preparing for t-test.")
@@ -405,18 +395,17 @@ class PipelineRunner:
     def fit_and_predict_and_calculate_accuracy_pipe(self, data_column):
         print('Start fiting')
         self.pipeline.fit(self.data_training, self.data_training[data_column].to_numpy())
-        print('Start prediction')
+        print(f'Saving classifier to file {self.classifier_file}')
+        self.save_classifier(self.classifier_file)
+        return self.predict_test_data(data_column)
+
+    def predict_test_data(self, data_column):
+        print('Start test prediction')
         start = time.time()
         y_pred_pipe = self.pipeline.predict(self.data_test)
         # self.safe_prediction(y_pred_pipe, data_column)
         end = time.time()
         print(f'time needed: {end - start}')
-
-        #return accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
-
-        #Perform t-test to compare with a baseline classifier
-        #baseline_acc = baseline_classifier(data_column)
-        #self.conduct_ttest(y_pred_pipe, self.data_test[data_column].to_numpy())
 
         acc = accuracy_score(self.data_test[data_column].to_numpy(), y_pred_pipe)
         f1 = f1_score(self.data_test[data_column].to_numpy(), y_pred_pipe, average='weighted')
@@ -427,21 +416,21 @@ class PipelineRunner:
     def fit_and_predict_and_calculate_confidence_pipe(self, data_column):
         print('Start fiting')
         self.pipeline.fit(self.data_training, self.data_training[data_column].to_numpy())
-        print('Start prediction')
+        print(f'Saving classifier to file {self.classifier_file}')
+        self.save_classifier(self.classifier_file)
+        print(f'best gridsearch params:\n{self.estimator.best_params_}')
+        return self.predict_test_data_confidence(data_column)
+
+
+    def predict_test_data_confidence(self, data_column):
+        print('Start test prediction')
 
         # predicte die confidence für jedes Item
         y_pred_pipe = self.pipeline.predict_proba(self.data_test)
         df = pd.DataFrame(data=y_pred_pipe, columns=['confidence class 0', 'confidence class 1'])
 
         # predicte die Klasse für jedes Item
-        class_predictions = list()
-        for index, row in df.iterrows():
-            if row['confidence class 0'] >= row['confidence class 1']:
-                class_predictions.append(0)
-            else:
-                class_predictions.append(1)
-
-        df['prediction'] = class_predictions
+        df['prediction'] = self.classify_prediction(df)
 
         # schreibe die confidence der predicted class in die Spalte max confidence
         df['max confidence'] = df[['confidence class 0', 'confidence class 1']].max(axis=1)
@@ -482,13 +471,23 @@ class PipelineRunner:
     def filter_threshold(self, dataframe, threshold):
         # alle Zeilen aussortieren, die eine confidence unter dem threshold haben
         df_new = pd.DataFrame({'real sentiment label': [100], 'prediction': [100], 'confidence': [100]})
-        for i in dataframe.index:
-            if (dataframe['confidence'][i]) >threshold:
-                item = pd.DataFrame({'real sentiment label': [dataframe['real sentiment label'][i]],
-                                        'prediction': [dataframe['prediction'][i]],
-                                        'confidence': [dataframe['confidence'][i]]})
+        for index, row in dataframe.iterrows():
+            if (row['confidence']) > threshold:
+                item = pd.DataFrame({'real sentiment label': [row['real sentiment label']],
+                                     'prediction': [row['prediction']],
+                                     'confidence': [row['confidence']]})
                 df_new = df_new.append(item, ignore_index=True)
         return df_new
+
+    def classify_prediction(self, df):
+        class_predictions = list()
+        for index, row in df.iterrows():
+            if row['confidence class 0'] >= row['confidence class 1']:
+                class_predictions.append(0)
+            else:
+                class_predictions.append(1)
+        return class_predictions
+
 
     def safe_prediction(self, prediction, data_column):
         pred_data_frame = self.data_test.copy(deep=True)
@@ -534,28 +533,6 @@ class PipelineRunner:
                 if issubclass(type(obj), ColumnUser):
                     obj.set_column_to_use(new_column_name)
 
-        # with open(log_file, 'a', encoding='utf-8') as f:
-        #     f.write('#-------------------------------------------------')
-        #     f.write(f'result for column {result_for_column}:\n')
-        #
-        # row_count = data_validation.shape[0]
-        # counter = 0
-        # start_index = 0
-        #
-        # while start_index < row_count:
-        #
-        #     output = self.pipeline.predict(data_validation.loc[start_index: start_index + batch_size])
-        #     with open(log_file, 'a', encoding='utf-8') as f:
-        #         f.write(f'{output.tolist()}')
-        #         f.write('\n')
-        #     start_index += batch_size + 1 # das plus 1 kommt daher, dass bei den pandas Dataframes start und end index inklusive sind
-        #     counter += 1
-        #     if counter % 10 == 0:
-        #         print(f'{min(100.0, round((((start_index) / row_count) * 100), 2))}% done')
-        #
-        # with open(log_file, 'a', encoding='utf-8') as f:
-        #     f.write('#-------------------------------------------------\n\n\n\n\n')
-
         output = self.pipeline.predict(data_validation)
         with open(log_file, 'a', encoding='utf-8') as f:
             f.write('#-------------------------------------------------')
@@ -563,35 +540,6 @@ class PipelineRunner:
             f.write(f'{output.tolist()}')
             f.write('\n')
             f.write('#-------------------------------------------------\n\n\n\n\n')
-
-
-def fit_and_predict_and_calculate_accuracy_pipe(self, pipe, train_input, train_ouput, test_input, test_output):
-    pipe.fit(train_input, train_ouput)
-
-    y_pred_pipe = pipe.predict(test_input)
-
-    #self.conduct_ttest(y_pred_pipe, test_output)
-
-    acc = accuracy_score(test_output, y_pred_pipe)
-    f1 = f1_score(test_output, y_pred_pipe, average='weighted')
-    rec = recall_score(test_output, y_pred_pipe, average='weighted')
-    precision = precision_score(test_output, y_pred_pipe, average='weighted')
-
-    #return accuracy_score(test_output, y_pred_pipe)
-    return acc, f1, rec, precision
-
-
-def write_result_to_file(accuracy, f1, recall, precision, type, description):
-    result_file = 'results/results_with_correct_input.log'
-    with open(result_file, 'a', encoding='utf-8') as file:
-        file.write('#------------------------------------------------------------------------------------------\n')
-        file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
-        file.write(f'\t{description}\n')
-        file.write(f'\t\tAccuracy for classifier {type}: {accuracy}\n')
-        file.write(f'\t\tF1 Score {type}: {f1}\n')
-        file.write(f'\t\tRecall Score {type}: {recall}\n')
-        file.write(f'\t\tPrecision Score {type}: {precision}\n')
-        file.write('#------------------------------------------------------------------------------------------\n')
 
 
 if __name__ == '__main__':
@@ -633,10 +581,17 @@ if __name__ == '__main__':
     # pipeline_runner.make_pipeline_confidence(transformers_list, bnb_subjlang, 'SUBJlang01', dict(alpha=Cs),
     #                                          dir_path=dir_path, classifier_description='probability')
 
+    # transformers_list_svm = [TextToSentenceTransformer('text', 'Sentence'),
+    #                      BertTransformer('Sentence', batchsize=100),
+    #                      PreprocessorTransformer('Sentence'),
+    #                      SentimentOpinionValueCalculatorSingleValueTransformer(dict_file),
+    #                      sklearn.preprocessing.StandardScaler(),
+    #                      sklearn.preprocessing.MinMaxScaler()]
+    #
     # svm_subjlang = sklearn.svm.SVC(kernel='linear')
-    # pipeline_runner.make_pipeline_confidence(transformers_list, svm_subjlang, 'SUBJlang01', dict(C=Cs),
+    # pipeline_runner.make_pipeline_confidence(transformers_list_svm, svm_subjlang, 'SUBJlang01', dict(C=Cs),
     #                                          dir_path=dir_path, classifier_description='probability')
-
+    #
     # pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC-sentences-Dataset.csv',
     #                              result_for_column='SUBJlang',
     #                              log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log',
