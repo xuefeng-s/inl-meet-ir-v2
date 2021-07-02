@@ -548,11 +548,11 @@ if __name__ == '__main__':
 
     dict_file = dir_path + 'sentiment_dict.csv'
 
-    training_file_sentiment = dir_path + 'datasetSentimentSRF_train.xlsx'
-    training_file_opinion = dir_path + 'AllOpinionDatasetRF_train.xlsx'
+    training_file_sentiment = 'datasetSentimentSRF_train.xlsx'
+    training_file_opinion = 'AllOpinionDatasetRF_train.xlsx'
 
-    test_file_sentiment = dir_path + 'datasetSentimentSRF_test.xlsx'
-    test_file_opinion = dir_path + 'AllOpinionDatasetRF_test.xlsx'
+    test_file_sentiment = 'datasetSentimentSRF_test.xlsx'
+    test_file_opinion = 'AllOpinionDatasetRF_test.xlsx'
 
     transformers_list = [TextToSentenceTransformer('text', 'Sentence'),
                          BertTransformer('Sentence', batchsize=10),
@@ -565,41 +565,41 @@ if __name__ == '__main__':
 
     param_grid_log_reg = [
         # Standard Konfiguration
-        {
-            'solver': ['lbfgs'],
-            'C': Cs
-        },
+        # {
+        #     'solver': ['lbfgs'],
+        #     'C': Cs
+        # },
         {
             'solver': ['newton-cg'],
             'C': Cs
         },
-        {
-            'solver': ['liblinear'],
-            'C': Cs,
-            'penalty': ['l1']
-        },
-        {
-            'solver': ['liblinear'],
-            'C': Cs,
-            'penalty': ['l2']
-        },
-        {
-            'solver': ['sag'],
-            'C': Cs
-        },
-        {
-            'solver': ['saga'],
-            'C': Cs,
-            'penalty': ['elasticnet'],
-            'l1_ratio': l1s
-        },
+        # {
+        #     'solver': ['liblinear'],
+        #     'C': Cs,
+        #     'penalty': ['l1']
+        # },
+        # {
+        #     'solver': ['liblinear'],
+        #     'C': Cs,
+        #     'penalty': ['l2']
+        # },
+        # {
+        #     'solver': ['sag'],
+        #     'C': Cs
+        # },
+        # {
+        #     'solver': ['saga'],
+        #     'C': Cs,
+        #     'penalty': ['elasticnet'],
+        #     'l1_ratio': l1s
+        # },
     ]
 
     # SUBJopin
     pipeline_runner = PipelineRunner(dict_file, training_file_opinion, test_file_opinion, log_file=dir_path + f'results/results_for_different_threshholds_SUBJlang_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log')
     log_reg = LogisticRegression(max_iter=max_iter)
     # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
-    pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', param_grid_log_reg, dir_path=dir_path, classifier_description='probability')
+    pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', param_grid_log_reg, dir_path=dir_path, classifier_description='newton-cg')
 
     # SUBJlang
     # pipeline_runner = PipelineRunner(dict_file, training_file_sentiment, test_file_sentiment,
