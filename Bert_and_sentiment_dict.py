@@ -397,6 +397,7 @@ class PipelineRunner:
         self.pipeline.fit(self.data_training, self.data_training[data_column].to_numpy())
         print(f'Saving classifier to file {self.classifier_file}')
         self.save_classifier(self.classifier_file)
+        print(f'best gridsearch params:\n{self.estimator.best_params_}')
         return self.predict_test_data(data_column)
 
     def predict_test_data(self, data_column):
@@ -544,36 +545,73 @@ class PipelineRunner:
 
 if __name__ == '__main__':
     dir_path = 'data/'
-    # dict_file = dir_path + 'AFINN-both-abs.csv'
+
     dict_file = dir_path + 'sentiment_dict.csv'
 
-    training_file = dir_path + 'datasetSentimentSRF_train.xlsx'
-    # training_file = dir_path + 'TrainingdataNew_train.xlsx'
+    training_file_sentiment = dir_path + 'datasetSentimentSRF_train.xlsx'
+    training_file_opinion = dir_path + 'AllOpinionDatasetRF_train.xlsx'
 
-    test_file = dir_path + 'datasetSentimentSRF_test.xlsx'
-    # test_file = dir_path + 'TrainingdataNew_test.xlsx'
+    test_file_sentiment = dir_path + 'datasetSentimentSRF_test.xlsx'
+    test_file_opinion = dir_path + 'AllOpinionDatasetRF_test.xlsx'
 
     transformers_list = [TextToSentenceTransformer('text', 'Sentence'),
                          BertTransformer('Sentence', batchsize=10),
                          PreprocessorTransformer('Sentence'),
                          SentimentOpinionValueCalculatorSingleValueTransformer(dict_file)]
 
-    pipeline_runner = PipelineRunner(dict_file, training_file, test_file, log_file=dir_path + 'results/results_for_different_threshholds.log')
-    Cs = np.logspace(0.0001, 6, 100)
+    Cs = np.logspace(-6, 6, 200)
     max_iter = 500
-    # bert = BertTransformer('Sentence', batchsize=100)
-    # bert.transform(pd.read_excel('data/datasetSingleSentences.xlsx', sheet_name='Sheet1'))
-    # log_reg_subjopin = LogisticRegression(max_iter=max_iter)
-    # pipeline_runner.make_pipeline(transformers_list, log_reg_subjopin, 'SUBJopin01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
+    l1s = [0.25, 0.5, 0.75] #np.logspace(0, 1, 50)
 
-    # pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC-sentences-Dataset.csv',
-    #                              result_for_column='SUBJopin',
-    #                              log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log',
-    #                              new_column_name='sentences')
+    param_grid_log_reg = [
+        # Standard Konfiguration
+        {
+            'solver': ['lbfgs'],
+            'C': Cs
+        },
+        {
+            'solver': ['newton-cg'],
+            'C': Cs
+        },
+        {
+            'solver': ['liblinear'],
+            'C': Cs,
+            'penalty': ['l1']
+        },
+        {
+            'solver': ['liblinear'],
+            'C': Cs,
+            'penalty': ['l2']
+        },
+        {
+            'solver': ['sag'],
+            'C': Cs
+        },
+        {
+            'solver': ['saga'],
+            'C': Cs,
+            'penalty': ['elasticnet'],
+            'l1_ratio': l1s
+        },
+    ]
 
-    log_reg_subjlang = LogisticRegression(max_iter=max_iter)
-    pipeline_runner.make_pipeline_confidence(transformers_list, log_reg_subjlang, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
+    # SUBJopin
+    pipeline_runner = PipelineRunner(dict_file, training_file_opinion, test_file_opinion, log_file=dir_path + f'results/results_for_different_threshholds_SUBJlang_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log')
+    log_reg = LogisticRegression(max_iter=max_iter)
+    # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
+    pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', param_grid_log_reg, dir_path=dir_path, classifier_description='probability')
 
+    # SUBJlang
+    # pipeline_runner = PipelineRunner(dict_file, training_file_sentiment, test_file_sentiment,
+    #                                  log_file=dir_path + f'results/results_for_different_threshholds_SUBJopin_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log')
+    # log_reg = LogisticRegression(max_iter=max_iter)
+    # # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
+    # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', param_grid_log_reg, dir_path=dir_path, classifier_description='probability')
+
+
+
+
+    # Andere Classifier die wir momentan nicht mehr benutzen
     #gnb_subjlang = GaussianNB()
     #pipeline_runner.make_pipeline_confidence(transformers_list, gnb_subjlang, 'SUBJlang01', dict(var_smoothing=Cs), dir_path=dir_path, classifier_description='probability')
 
