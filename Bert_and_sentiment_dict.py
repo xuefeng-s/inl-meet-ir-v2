@@ -404,7 +404,7 @@ class PipelineRunner:
         print('Start test prediction')
         start = time.time()
         y_pred_pipe = self.pipeline.predict(self.data_test)
-        # self.safe_prediction(y_pred_pipe, data_column)
+        # self.save_prediction(y_pred_pipe, data_column)
         end = time.time()
         print(f'time needed: {end - start}')
 
@@ -490,8 +490,8 @@ class PipelineRunner:
         return class_predictions
 
 
-    def safe_prediction(self, prediction, data_column):
-        pred_data_frame = self.data_test.copy(deep=True)
+    def save_prediction(self, prediction, data_column, data):
+        pred_data_frame = data.copy(deep=True)
         pred_data_frame[f'prediction_{data_column}'] = prediction
         pred_data_frame.to_excel(f'data/results/prediction_for_{data_column}.xlsx', index=False)
         pass
@@ -522,7 +522,7 @@ class PipelineRunner:
             file.write('#------------------------------------------------------------------------------------------\n')
 
     def predict_data(self, data_file_name, column_to_transform=None, new_column_name=None, batch_size=1, result_for_column='', log_file=f'results/results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'):
-        data_validation = pd.read_csv(data_file_name)
+        data_validation = pd.read_excel(data_file_name)
 
         if column_to_transform is not None:
             for obj in self.pipeline.named_steps.values():
@@ -535,12 +535,14 @@ class PipelineRunner:
                     obj.set_column_to_use(new_column_name)
 
         output = self.pipeline.predict(data_validation)
-        with open(log_file, 'a', encoding='utf-8') as f:
-            f.write('#-------------------------------------------------')
-            f.write(f'result for column {result_for_column}:\n')
-            f.write(f'{output.tolist()}')
-            f.write('\n')
-            f.write('#-------------------------------------------------\n\n\n\n\n')
+        self.save_prediction(output, "SUBJopin", data_validation)
+
+        #with open(log_file, 'a', encoding='utf-8') as f:
+        #    f.write('#-------------------------------------------------')
+        #    f.write(f'result for column {result_for_column}:\n')
+        #    f.write(f'{output.tolist()}')
+        #    f.write('\n')
+        #    f.write('#-------------------------------------------------\n\n\n\n\n')
 
 
 if __name__ == '__main__':
@@ -608,9 +610,6 @@ if __name__ == '__main__':
     # # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
     # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', param_grid_log_reg, dir_path=dir_path, classifier_description='lbfgs')
 
-
-
-
     # Andere Classifier die wir momentan nicht mehr benutzen
     #gnb_subjlang = GaussianNB()
     #pipeline_runner.make_pipeline_confidence(transformers_list, gnb_subjlang, 'SUBJlang01', dict(var_smoothing=Cs), dir_path=dir_path, classifier_description='probability')
@@ -630,7 +629,8 @@ if __name__ == '__main__':
     # pipeline_runner.make_pipeline_confidence(transformers_list_svm, svm_subjlang, 'SUBJlang01', dict(C=Cs),
     #                                          dir_path=dir_path, classifier_description='probability')
     #
-    # pipeline_runner.predict_data(data_file_name=dir_path + 'MBFC-sentences-Dataset.csv',
-    #                              result_for_column='SUBJlang',
-    #                              log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log',
-    #                              new_column_name='sentences')
+    print("Attempting to start with actual data.")
+    pipeline_runner.predict_data(data_file_name= dir_path + 'MBFC-sentences-Dataset.xlsx',
+                                  result_for_column='SUBJopin01',
+                                  log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log',
+                                  new_column_name='sentences')
