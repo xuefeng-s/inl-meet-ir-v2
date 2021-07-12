@@ -642,7 +642,7 @@ if __name__ == '__main__':
 
     transformers_list = [TextToSentenceTransformer('text', 'Sentence'),
                          BertTransformer('Sentence', batchsize=10),
-                         AdvancedPreprocessorTransformer('Sentence'),
+                         PreprocessorTransformer('Sentence'),
                          SentimentOpinionValueCalculatorSingleValueTransformer(dict_file)]
 
     Cs = np.logspace(-6, 6, 200)
