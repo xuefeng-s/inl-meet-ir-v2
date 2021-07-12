@@ -31,7 +31,7 @@ from scipy import stats as stats
 
 nltk.download('stopwords')
 nltk.download('punkt')
-spacy.cli.download('en_core_web_sm')
+#spacy.cli.download('en_core_web_sm')
 
 print(pipeline('sentiment-analysis')('we love you'))
 
@@ -165,7 +165,7 @@ class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
         tokenized = []
 
         for s in dataList:
-            t = self.tokenizer.encode(s, add_special_tokens=True)
+            t = self.tokenizer.encode(s, add_special_tokens=True, truncation=True)
             tokenized.append(t)
 
         # Padding hinzufügen
