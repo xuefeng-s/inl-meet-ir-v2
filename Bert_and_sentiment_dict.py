@@ -13,6 +13,7 @@ import joblib
 import re
 import os
 import time
+import spacy
 from enum import Enum
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
@@ -30,7 +31,7 @@ from scipy import stats as stats
 
 nltk.download('stopwords')
 nltk.download('punkt')
-
+spacy.cli.download('en_core_web_sm')
 
 print(pipeline('sentiment-analysis')('we love you'))
 
@@ -88,6 +89,38 @@ class TextToSentenceTransformer(BaseEstimator, TransformerMixin, ColumnTransform
             file.write(f'\t{description}\n')
             file.write(
                 '#------------------------------------------------------------------------------------------\n\n\n')
+
+
+
+class PreprocessorBeforeBertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
+
+    def __init__(self, column):
+        self.column = column
+
+    def set_column_to_use(self, column_name):
+        self.column = column_name
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, data, y=None):
+        print('Start preprocessing')
+        sentences = data[self.column].tolist()
+        sentences = list((str(s) for s in sentences))
+
+        # muss vom generator object zurück zur liste gemacht werden
+        sentences = list((s.lower() for s in sentences))
+
+        table = str.maketrans('', '', string.punctuation)
+        sentences = [s.translate(table) for s in sentences]
+
+        sentences = [re.sub(r'\d+', 'num', s) for s in sentences]
+
+        stopwords = set(nltk.corpus.stopwords.words('english'))
+        sentences = [[word for word in s.split() if word not in stopwords] for s in sentences]
+        return pd.DataFrame({self.column: sentences})
+
+
 
 
 class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
@@ -179,9 +212,10 @@ class PreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUser):
         sentences = data[self.column].tolist()
         sentences = list((str(s) for s in sentences))
 
-        # muss vom generator object zurück zur liste gemacht werden
+        # make lower case
         sentences = list((s.lower() for s in sentences))
 
+        # remove punctuation
         table = str.maketrans('', '', string.punctuation)
         sentences = [s.translate(table) for s in sentences]
 
@@ -190,6 +224,53 @@ class PreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUser):
         stopwords = set(nltk.corpus.stopwords.words('english'))
         sentences = [[word for word in s.split() if word not in stopwords] for s in sentences]
         return (sentences, features)
+
+
+class AdvancedPreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUser):
+
+    def __init__(self, column):
+        self.column = column
+
+    def set_column_to_use(self, column_name):
+        self.column = column_name
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, data_and_features, y=None):
+        print('Starting with advanced preprocessing')
+        data, features = data_and_features
+        sentences = data[self.column].tolist()
+        sentences = list((str(s) for s in sentences))
+
+        # make lower case
+        sentences = list((s.lower() for s in sentences))
+
+        # remove punctuation
+        table = str.maketrans('', '', string.punctuation)
+        sentences = [s.translate(table) for s in sentences]
+
+        # replace numbers
+        sentences = [re.sub(r'\d+', 'num', s) for s in sentences]
+
+        # remove stopwords
+        stopwords = set(nltk.corpus.stopwords.words('english'))
+        sentences = [[word for word in s.split() if word not in stopwords] for s in sentences]
+
+        # remove named entities
+        nlp = spacy.load("en_core_web_sm")
+        sentences2 = []
+        for s in sentences:
+            text_no_namedentities = []
+            document = nlp(str(s))
+            for item in document:
+                if item.ent_type:  # falls es ein name ist
+                    # text_no_namedentities.append('ne')        # durch ne ersetzen
+                    pass  # oder ganz auslassen
+                else:
+                    text_no_namedentities.append(item.text)
+            sentences2.append(" ".join(text_no_namedentities))
+        return sentences2, features
 
 
 class SentimentOpinionValueCalculatorSingleValueTransformer(BaseEstimator, TransformerMixin):
@@ -269,8 +350,10 @@ class PipelineRunner:
         self.classifier_file = None
         self.transformer_name_dict = {
                                       TextToSentenceTransformer.__name__: "ts",
+                                      PreprocessorBeforeBertTransformer.__name__: "preprob",
                                       BertTransformer.__name__: "bert",
                                       PreprocessorTransformer.__name__: "prepro",
+                                      AdvancedPreprocessorTransformer.__name__: "advprepro",
                                       SentimentOpinionValueCalculatorSingleValueTransformer.__name__: "sentval",
                                       SentimentOpinionValueCounterTransformer.__name__: "sentcount",
                                       sklearn.preprocessing.StandardScaler.__name__: "std-scaler",
@@ -559,7 +642,7 @@ if __name__ == '__main__':
 
     transformers_list = [TextToSentenceTransformer('text', 'Sentence'),
                          BertTransformer('Sentence', batchsize=10),
-                         PreprocessorTransformer('Sentence'),
+                         AdvancedPreprocessorTransformer('Sentence'),
                          SentimentOpinionValueCalculatorSingleValueTransformer(dict_file)]
 
     Cs = np.logspace(-6, 6, 200)
