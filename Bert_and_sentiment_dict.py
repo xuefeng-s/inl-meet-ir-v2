@@ -535,7 +535,8 @@ class PipelineRunner:
                     obj.set_column_to_use(new_column_name)
 
         output = self.pipeline.predict(data_validation)
-        self.save_prediction(output, "SUBJopin", data_validation)
+        if result_for_column != '':
+            self.save_prediction(output, result_for_column, data_validation)
 
         #with open(log_file, 'a', encoding='utf-8') as f:
         #    f.write('#-------------------------------------------------')
@@ -550,10 +551,10 @@ if __name__ == '__main__':
 
     dict_file = dir_path + 'sentiment_dict.csv'
 
-    training_file_sentiment = 'datasetSentimentSRF_train.xlsx'
+    training_file_sentiment = dir_path + 'datasetSentimentSRF_train.xlsx'
     training_file_opinion = 'AllOpinionDatasetRF_train.xlsx'
 
-    test_file_sentiment = 'datasetSentimentSRF_test.xlsx'
+    test_file_sentiment = dir_path + 'datasetSentimentSRF_test.xlsx'
     test_file_opinion = 'AllOpinionDatasetRF_test.xlsx'
 
     transformers_list = [TextToSentenceTransformer('text', 'Sentence'),
@@ -597,20 +598,37 @@ if __name__ == '__main__':
         # },
     ]
 
+    #vvvvvvvvvvvv DATASET HERE vvvvvvvvvvvvv
+    data_file = 'test.xlsx'
+    #^^^^^^^^^^^^ DATASET HERE ^^^^^^^^^^^^^
+
     # SUBJopin
     pipeline_runner = PipelineRunner(dict_file, training_file_opinion, test_file_opinion, log_file=dir_path + f'results/results_for_different_threshholds_SUBJopin_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log')
     log_reg = LogisticRegression(max_iter=max_iter)
     # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
     pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', param_grid_log_reg, dir_path=dir_path, classifier_description='lbfgs')
 
-    # SUBJlang
-    # pipeline_runner = PipelineRunner(dict_file, training_file_sentiment, test_file_sentiment,
-    #                                  log_file=dir_path + f'results/results_for_different_threshholds_SUBJlang_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log')
-    # log_reg = LogisticRegression(max_iter=max_iter)
-    # # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
-    # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', param_grid_log_reg, dir_path=dir_path, classifier_description='lbfgs')
+    print("Running prediction for opinion...")
+    pipeline_runner.predict_data(data_file_name= dir_path + data_file,
+                                  result_for_column='SUBJopin01',
+                                  log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log',
+                                  new_column_name='sentences')
 
-    # Andere Classifier die wir momentan nicht mehr benutzen
+    # SUBJlang
+    pipeline_runner = PipelineRunner(dict_file, training_file_sentiment, test_file_sentiment,
+                                     log_file=dir_path + f'results/results_for_different_threshholds_SUBJlang_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log')
+    log_reg = LogisticRegression(max_iter=max_iter)
+    # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
+    pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', param_grid_log_reg,
+                                             dir_path=dir_path, classifier_description='lbfgs')
+
+    print("Running prediction for sentiment...")
+    pipeline_runner.predict_data(data_file_name=dir_path + data_file,
+                                 result_for_column='SUBJlang01',
+                                 log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log',
+                                 new_column_name='sentences')
+
+#vvvvvvvvvvvvvvvvvvvvvvIGNORE THISvvvvvvvvvvvvvvvvvvvvv Andere Classifier die wir momentan nicht mehr benutzen
     #gnb_subjlang = GaussianNB()
     #pipeline_runner.make_pipeline_confidence(transformers_list, gnb_subjlang, 'SUBJlang01', dict(var_smoothing=Cs), dir_path=dir_path, classifier_description='probability')
 
@@ -629,8 +647,3 @@ if __name__ == '__main__':
     # pipeline_runner.make_pipeline_confidence(transformers_list_svm, svm_subjlang, 'SUBJlang01', dict(C=Cs),
     #                                          dir_path=dir_path, classifier_description='probability')
     #
-    print("Attempting to start with actual data.")
-    pipeline_runner.predict_data(data_file_name= dir_path + 'MBFC-sentences-Dataset.xlsx',
-                                  result_for_column='SUBJopin01',
-                                  log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log',
-                                  new_column_name='sentences')
