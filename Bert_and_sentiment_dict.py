@@ -38,6 +38,17 @@ print(pipeline('sentiment-analysis')('we love you'))
 
 # Man kann auch mehrere hintereinander machen
 
+class FileReader:
+    def read_file(self, file_name):
+        file_extension = file_name[file_name.rfind('.')+1:].lower()
+        if file_extension == 'csv':
+            return pd.read_csv(file_name)
+        elif file_extension == 'xls' or file_extension == 'xlsx':
+            return pd.read_excel(file_name)
+        else:
+            raise RuntimeError(f"Can't identify file extension {file_extension}. Abort try to read it")
+
+
 class ColumnUser:
     def set_column_to_use(self, column_name):
         pass
@@ -343,8 +354,9 @@ class PipelineRunner:
     def __init__(self, dict_file, training_file, test_file, log_file='data/results/results_with_correct_input.log'):
         self.dict_file = dict_file
         self.log_file = log_file
-        self.data_training = pd.read_excel(training_file, sheet_name='sentences')
-        self.data_test = pd.read_excel(test_file, sheet_name='sentences')
+        self.file_reader = FileReader()
+        self.data_training = self.file_reader.read_file(training_file)# pd.read_excel(training_file, sheet_name='sentences')
+        self.data_test = self.file_reader.read_file(test_file) #pd.read_excel(test_file, sheet_name='sentences')
         self.pipeline = None
         self.estimator = None
         self.classifier_file = None
@@ -605,7 +617,7 @@ class PipelineRunner:
             file.write('#------------------------------------------------------------------------------------------\n')
 
     def predict_data(self, data_file_name, column_to_transform=None, new_column_name=None, batch_size=1, result_for_column='', log_file=f'results/results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'):
-        data_validation = pd.read_excel(data_file_name)
+        data_validation = self.file_reader.read_file(data_file_name) #pd.read_excel(data_file_name)
 
         if column_to_transform is not None:
             for obj in self.pipeline.named_steps.values():
@@ -689,7 +701,7 @@ if __name__ == '__main__':
     pipeline_runner = PipelineRunner(dict_file, training_file_opinion, test_file_opinion, log_file=dir_path + f'results/results_for_different_threshholds_SUBJopin_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log')
     log_reg = LogisticRegression(max_iter=max_iter)
     # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
-    pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', param_grid_log_reg, dir_path=dir_path, classifier_description='lbfgs')
+    pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', param_grid_log_reg, dir_path=dir_path, classifier_description='from_2021-08-22')
 
     print("Running prediction for opinion...")
     pipeline_runner.predict_data(data_file_name= dir_path + data_file,
@@ -703,7 +715,7 @@ if __name__ == '__main__':
     log_reg = LogisticRegression(max_iter=max_iter)
     # pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', dict(C=Cs), dir_path=dir_path, classifier_description='probability')
     pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', param_grid_log_reg,
-                                             dir_path=dir_path, classifier_description='lbfgs')
+                                             dir_path=dir_path, classifier_description='from_2021-08-22')
 
     print("Running prediction for sentiment...")
     pipeline_runner.predict_data(data_file_name=dir_path + data_file,
