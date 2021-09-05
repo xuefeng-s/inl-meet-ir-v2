@@ -694,7 +694,7 @@ if __name__ == '__main__':
     ]
 
     #vvvvvvvvvvvv DATASET HERE vvvvvvvvvvvvv
-    data_file = 'test.xlsx'
+    data_file = 'Propaganda-Dataset.xlsx'
     #^^^^^^^^^^^^ DATASET HERE ^^^^^^^^^^^^^
 
     # SUBJopin
@@ -706,7 +706,7 @@ if __name__ == '__main__':
     print("Running prediction for opinion...")
     pipeline_runner.predict_data(data_file_name= dir_path + data_file,
                                   result_for_column='SUBJopin01',
-                                  log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log',
+                                  log_file=dir_path + f'results/{data_file[:data_file.rfind(".")]}_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log',
                                   new_column_name='sentences')
 
     # SUBJlang
@@ -720,7 +720,7 @@ if __name__ == '__main__':
     print("Running prediction for sentiment...")
     pipeline_runner.predict_data(data_file_name=dir_path + data_file,
                                  result_for_column='SUBJlang01',
-                                 log_file=dir_path + f'results/mbfc_sentences_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log',
+                                 log_file=dir_path + f'results/{data_file[:data_file.rfind(".")]}_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log',
                                  new_column_name='sentences')
 
 #vvvvvvvvvvvvvvvvvvvvvvIGNORE THISvvvvvvvvvvvvvvvvvvvvv Andere Classifier die wir momentan nicht mehr benutzen
