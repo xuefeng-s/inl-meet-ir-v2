@@ -591,6 +591,17 @@ class PipelineRunner:
         pred_data_frame.to_excel(f'data/results/prediction_for_{data_column}.xlsx', index=False)
         pass
 
+
+    def save_prediction_confidence(self, prediction, data_column, data):
+        pred_data_frame = data.copy(deep=True)
+        thresholds = [0.5, 0.6, 0.7, 0.8]
+        pred_data_frame[f'prediction_{data_column}_confidence_class0'] = [p[0] for p in prediction]
+        pred_data_frame[f'prediction_{data_column}_confidence_class1'] = [p[1] for p in prediction]
+        for threshold in thresholds:
+            pred_data_frame[f'prediction_{data_column}_{threshold}'] = [0 if p[1] < threshold else 1 for p in prediction]
+        pred_data_frame.to_excel(f'data/results/prediction_confidence_for_{data_column}.xlsx', index=False)
+        pass
+
     def write_result_to_file(self, accuracy, f1, recall, precision, description):
         with open(self.log_file, 'a', encoding='utf-8') as file:
             file.write('#------------------------------------------------------------------------------------------\n')
@@ -639,6 +650,30 @@ class PipelineRunner:
         #    f.write(f'{output.tolist()}')
         #    f.write('\n')
         #    f.write('#-------------------------------------------------\n\n\n\n\n')
+
+    def predict_data_confidence(self, data_file_name, column_to_transform=None, new_column_name=None, batch_size=1, result_for_column='', log_file=f'results/results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'):
+        data_validation = self.file_reader.read_file(data_file_name) #pd.read_excel(data_file_name)
+
+        if column_to_transform is not None:
+            for obj in self.pipeline.named_steps.values():
+                if issubclass(type(obj), ColumnTransformer):
+                    obj.set_column_to_transform(column_to_transform)
+
+        if new_column_name is not None:
+            for obj in self.pipeline.named_steps.values():
+                if issubclass(type(obj), ColumnUser):
+                    obj.set_column_to_use(new_column_name)
+
+        output = self.pipeline.predict_proba(data_validation)
+        if result_for_column != '':
+            self.save_prediction_confidence(output, result_for_column, data_validation)
+
+        #with open(log_file, 'a', encoding='utf-8') as f:
+        #    f.write('#-------------------------------------------------')
+        #    f.write(f'result for column {result_for_column}:\n')
+        #    f.write(f'{output.tolist()}')
+        #    f.write('\n')
+        #
 
 
 if __name__ == '__main__':
@@ -694,7 +729,7 @@ if __name__ == '__main__':
     ]
 
     #vvvvvvvvvvvv DATASET HERE vvvvvvvvvvvvv
-    data_file = 'Propaganda-Dataset.xlsx'
+    data_file = 'political_bias.csv'
     #^^^^^^^^^^^^ DATASET HERE ^^^^^^^^^^^^^
 
     # SUBJopin
@@ -704,10 +739,10 @@ if __name__ == '__main__':
     pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', param_grid_log_reg, dir_path=dir_path, classifier_description='from_2021-08-22')
 
     print("Running prediction for opinion...")
-    pipeline_runner.predict_data(data_file_name= dir_path + data_file,
+    pipeline_runner.predict_data_confidence(data_file_name= dir_path + data_file,
                                   result_for_column='SUBJopin01',
                                   log_file=dir_path + f'results/{data_file[:data_file.rfind(".")]}_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJopin.log',
-                                  new_column_name='sentences')
+                                  new_column_name='Sentence')
 
     # SUBJlang
     pipeline_runner = PipelineRunner(dict_file, training_file_sentiment, test_file_sentiment,
@@ -718,10 +753,10 @@ if __name__ == '__main__':
                                              dir_path=dir_path, classifier_description='from_2021-08-22')
 
     print("Running prediction for sentiment...")
-    pipeline_runner.predict_data(data_file_name=dir_path + data_file,
+    pipeline_runner.predict_data_confidence(data_file_name=dir_path + data_file,
                                  result_for_column='SUBJlang01',
                                  log_file=dir_path + f'results/{data_file[:data_file.rfind(".")]}_results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_SUBJlang.log',
-                                 new_column_name='sentences')
+                                 new_column_name='Sentence')
 
 #vvvvvvvvvvvvvvvvvvvvvvIGNORE THISvvvvvvvvvvvvvvvvvvvvv Andere Classifier die wir momentan nicht mehr benutzen
     #gnb_subjlang = GaussianNB()
