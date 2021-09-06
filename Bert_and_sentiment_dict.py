@@ -598,7 +598,7 @@ class PipelineRunner:
         pred_data_frame[f'prediction_{data_column}_confidence_class0'] = [p[0] for p in prediction]
         pred_data_frame[f'prediction_{data_column}_confidence_class1'] = [p[1] for p in prediction]
         for threshold in thresholds:
-            pred_data_frame[f'prediction_{data_column}_{threshold}'] = [0 if p[1] <= threshold else 1 for p in prediction]
+            pred_data_frame[f'prediction_{data_column}_{threshold}'] = [0 if p[1] < threshold else 1 for p in prediction]
         pred_data_frame.to_excel(f'data/results/prediction_confidence_for_{data_column}.xlsx', index=False)
         pass
 
