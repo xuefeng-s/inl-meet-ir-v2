@@ -663,6 +663,14 @@ class PipelineRunner:
     def predict_data_confidence(self, data_file_name, column_to_transform=None, new_column_name=None, batch_size=1, result_for_column='', log_file=f'results/results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'):
         data_validation = self.file_reader.read_file(data_file_name) #pd.read_excel(data_file_name)
 
+        if not new_column_name in data_validation.columns:
+            print('Data does not contain a ' + new_column_name + ' column')
+            for column in ['sentence', 'Sentence', 'sentences', 'Sentences']:
+                if column in data_validation.columns:
+                    new_column_name = column
+                    print('Found a column named ' + column + '. Proceeding with found column instead.')
+
+
         if column_to_transform is not None:
             for obj in self.pipeline.named_steps.values():
                 if issubclass(type(obj), ColumnTransformer):
@@ -738,7 +746,7 @@ if __name__ == '__main__':
     ]
 
     #vvvvvvvvvvvv DATASET HERE vvvvvvvvvvvvv
-    data_file = 'political_bias.csv'
+    data_file = 'test.xlsx'
     #^^^^^^^^^^^^ DATASET HERE ^^^^^^^^^^^^^
 
     # SUBJopin
