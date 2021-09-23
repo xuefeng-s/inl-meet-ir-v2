@@ -751,6 +751,7 @@ if __name__ == '__main__':
             log_file_opinion = default_log_file_name_opinion
 
         use_confidence = input('Do you want confidence values? [[y], n]')
+        data_file = input('enter file path to data file: ')
     else:
         training_file_opinion = default_training_file_opinion
         test_file_opinion = default_test_file_opinion
@@ -760,7 +761,10 @@ if __name__ == '__main__':
         log_file_opinion = default_log_file_name_opinion
         use_confidence = 'y'
 
-    data_file = input('enter file path to data file: ')
+        data_file = ''
+        if not data_file:
+            raise RuntimeError('use script in interacitve mode (-i or --interactive) or modify this script with a data file')
+
 
     dict_file = 'data/dict.csv'
 
