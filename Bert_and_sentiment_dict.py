@@ -783,6 +783,13 @@ class PipelineRunner:
         """
         data_validation = self.file_reader.read_file(data_file_name)
 
+        if not new_column_name in data_validation.columns:
+            print('Data does not contain a ' + new_column_name + ' column')
+            for column in ['sentence', 'Sentence', 'sentences', 'Sentences']:
+                if column in data_validation.columns:
+                    new_column_name = column
+                    print('Found a column named ' + column + '. Proceeding with found column instead.')
+
         if column_to_transform is not None:
             for obj in self.pipeline.named_steps.values():
                 if issubclass(type(obj), ColumnTransformer):
@@ -814,7 +821,6 @@ class PipelineRunner:
                 if column in data_validation.columns:
                     new_column_name = column
                     print('Found a column named ' + column + '. Proceeding with found column instead.')
-
 
         if column_to_transform is not None:
             for obj in self.pipeline.named_steps.values():
@@ -877,7 +883,7 @@ def init_and_run_pipeline():
             log_file_sentiment = default_log_file_name_sentiment
         result_dir_sentiment = input(
             f'enter file path to result directory for sentiment [default {default_result_dir_sentiment}]: ')
-        if not result_dir_opinion:
+        if not result_dir_sentiment:
             result_dir_sentiment = default_result_dir_sentiment
         fitting = input('Do you want to force new fitting of classifier for sentiment. This will overwrite [y, [n]]: ')
         force_fitting_sentiment = (fitting == 'y')
