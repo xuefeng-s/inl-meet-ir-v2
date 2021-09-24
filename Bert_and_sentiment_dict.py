@@ -38,6 +38,9 @@ print(pipeline('sentiment-analysis')('we love you'))
 # Man kann auch mehrere hintereinander machen
 
 class FileReader:
+    """
+    Reads file to pandas dataframe depending on the file extension
+    """
     def read_file(self, file_name):
         file_extension = file_name[file_name.rfind('.')+1:].lower()
         if file_extension == 'csv':
@@ -49,16 +52,25 @@ class FileReader:
 
 
 class ColumnUser:
+    """
+    Indicates if a transformer uses a column. Is an interface
+    """
     def set_column_to_use(self, column_name):
         pass
 
 
 class ColumnTransformer(ColumnUser):
+    """
+    Indicates if a transformer uses and transforms/produce a column. Is an interface
+    """
     def set_column_to_transform(self, column_to_transform):
         pass
 
 
 class TextToSentenceTransformer(BaseEstimator, TransformerMixin, ColumnTransformer):
+    """
+    Transformer which naive transform text to sentences. Split by nltk's sentence tokenizer
+    """
     def __init__(self, column_to_transform, new_column_name, filename='data/logs/text_to_sentence_transformer.error'):
         self.column_to_transform = column_to_transform
         self.new_column_name = new_column_name
@@ -104,6 +116,9 @@ class TextToSentenceTransformer(BaseEstimator, TransformerMixin, ColumnTransform
 
 class PreprocessorBeforeBertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
 
+    """
+    Transformer which makes every word lower case, removes punctuation, numbers and stopwords.
+    """
     def __init__(self, column):
         self.column = column
 
@@ -134,7 +149,9 @@ class PreprocessorBeforeBertTransformer(BaseEstimator, TransformerMixin, ColumnU
 
 
 class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
-
+    """
+    Lets calculate bert the word embedding for every sentence
+    """
     def __init__(self, column, batchsize=10):
         self.column = column
         self.batch_size = batchsize
@@ -206,7 +223,9 @@ class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
 
 
 class PreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUser):
-
+    """
+    Transformer which makes every word lower case, removes punctuation, numbers and stopwords.
+    """
     def __init__(self, column):
         self.column = column
 
@@ -237,7 +256,10 @@ class PreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUser):
 
 
 class AdvancedPreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUser):
-
+    """
+    Transformer which is an advanced version of PreprocessorTransformer.
+    This one also remove names
+    """
     def __init__(self, column):
         self.column = column
 
@@ -283,8 +305,10 @@ class AdvancedPreprocessorTransformer(BaseEstimator, TransformerMixin, ColumnUse
         return sentences2, features
 
 
-class SentimentOpinionValueCalculatorSingleValueTransformer(BaseEstimator, TransformerMixin):
-
+class SentimentOpinionValueCalculatorTransformer(BaseEstimator, TransformerMixin):
+    """
+    Transformer which calculates the average sentiment/opinion value of the sentence
+    """
     def __init__(self, dict_name):
         self.dict_name = dict_name
         df = pd.read_csv(dict_name, sep=';')
@@ -324,7 +348,9 @@ class SentimentOpinionValueCalculatorSingleValueTransformer(BaseEstimator, Trans
 
 
 class SentimentOpinionValueCounterTransformer(BaseEstimator, TransformerMixin):
-
+    """
+    Transformer which counts how many words from the dictionary occurs in the sentence
+    """
     def __init__(self, value_file_name):
         df = pd.read_csv(value_file_name, sep=';')
         self.value_dict = pd.Series(df.value.values, index=df.word).to_dict()
@@ -349,8 +375,11 @@ class SentimentOpinionValueCounterTransformer(BaseEstimator, TransformerMixin):
 
 
 class PipelineRunner:
-
-    def __init__(self, dict_file, training_file, test_file, log_file):
+    """
+    Encapsulates how to use the pipeline.
+    Creates or load the classifier. fits classifier if needed. saves statistics.
+    """
+    def __init__(self, dict_file, training_file, test_file, log_file, result_dir):
         self.dict_file = dict_file
         self.log_file = log_file
         self.file_reader = FileReader()
@@ -359,28 +388,38 @@ class PipelineRunner:
         self.pipeline = None
         self.estimator = None
         self.classifier_file = None
+        # short name of possible transformers
+        # must be updated if a new one is introduced
         self.transformer_name_dict = {
                                       TextToSentenceTransformer.__name__: "ts",
                                       PreprocessorBeforeBertTransformer.__name__: "preprob",
                                       BertTransformer.__name__: "bert",
                                       PreprocessorTransformer.__name__: "prepro",
                                       AdvancedPreprocessorTransformer.__name__: "advprepro",
-                                      SentimentOpinionValueCalculatorSingleValueTransformer.__name__: "sentval",
-                                      SentimentOpinionValueCounterTransformer.__name__: "sentcount",
+                                      SentimentOpinionValueCalculatorTransformer.__name__: "valcalc",
+                                      SentimentOpinionValueCounterTransformer.__name__: "count",
                                       sklearn.preprocessing.StandardScaler.__name__: "std-scaler",
                                       sklearn.preprocessing.MinMaxScaler.__name__: "minmax"
                                       }
+        # short name of possible estimators
+        # must be updated if a new one is introduced
         self.estimator_name_dict = {
             LogisticRegression.__name__: 'log_reg',
             GaussianNB.__name__: 'gau_nb',
             BernoulliNB.__name__: 'ber_nb',
             sklearn.svm.SVC.__name__: 'svc'
         }
-        self.result_dir = 'data/results/'
+        self.result_dir = result_dir
         self.classifier_dir = 'data/classifier/'
 
     def prepare_pipeline(self, data_column, estimator_type, transformer_types_list):
-
+        """
+        Fits new classifier and writes results to file
+        :param data_column:
+        :param estimator_type:
+        :param transformer_types_list:
+        :return: nothing
+        """
         if not self.pipeline:
             raise RuntimeError("Don't call this function directly use make_pipeline")
 
@@ -392,7 +431,13 @@ class PipelineRunner:
         self.write_result_to_file(accuracy, f1, recall, precision, description)
 
     def prepare_pipeline_confidence(self, data_column, estimator_type, transformer_types_list):
-
+        """
+        Fits new classifier and writes results to file
+        :param data_column:
+        :param estimator_type:
+        :param transformer_types_list:
+        :return: nothing
+        """
         if not self.pipeline:
             raise RuntimeError("Don't call this function directly use make_pipeline")
 
@@ -407,6 +452,16 @@ class PipelineRunner:
     def make_pipeline(self, transformer_list, estimator,
                       data_column, param_gird, classifier_description='', force_fitting=False):
 
+        """
+        Creates or load a pipeline. if it is created it will be tested without confidence
+        :param transformer_list: list of transformers
+        :param estimator: which estimator is used in GridSearchCV
+        :param data_column: opinion or sentiment (lang)
+        :param param_gird: parameter for GridSearchCV
+        :param classifier_description: advanced description of classifier
+        :param force_fitting: true if a new classifier should be created even it exists one.
+        :return: fitted or loaded pipeline
+        """
         self.classifier_file = self.create_pipe_line_name(transformer_list, estimator, classifier_description, data_column)
         if force_fitting or not os.path.exists(self.classifier_file):
             print('No classfier found for your configuration or force_fitting=True. Creating new one and saving it.')
@@ -422,7 +477,16 @@ class PipelineRunner:
 
     def make_pipeline_confidence(self, transformer_list, estimator,
                                  data_column, param_gird, classifier_description='', force_fitting=False):
-
+        """
+        Creates or load a pipeline. if it is created it will be tested with confidence
+        :param transformer_list: list of transformers
+        :param estimator: which estimator is used in GridSearchCV
+        :param data_column: opinion or sentiment (lang)
+        :param param_gird: parameter for GridSearchCV
+        :param classifier_description: advanced description of classifier
+        :param force_fitting: true if a new classifier should be created even it exists one.
+        :return: fitted or loaded pipeline
+        """
         self.classifier_file = self.create_pipe_line_name(transformer_list, estimator, classifier_description, data_column)
         if force_fitting or not os.path.exists(self.classifier_file):
             print('No classfier found for your configuration or force_fitting=True. Creating new one and saving it.')
@@ -457,6 +521,13 @@ class PipelineRunner:
         joblib.dump(self.estimator, filename)
 
     def conduct_ttest(self, predicted, validation, baseline_acc=0.5347):
+        """
+        Calculates results of conduct test
+        :param predicted:
+        :param validation:
+        :param baseline_acc:
+        :return:
+        """
         print("Preparing for t-test.")
         print("Collating prediction results.")
 
@@ -484,6 +555,11 @@ class PipelineRunner:
             return 0
 
     def fit_and_predict_and_calculate_accuracy_pipe(self, data_column):
+        """
+        Fits pipeline and calculates accuracy
+        :param data_column:
+        :return:
+        """
         print('Start fiting')
         self.pipeline.fit(self.data_training, self.data_training[data_column].to_numpy())
         print(f'Saving classifier to file {self.classifier_file}')
@@ -492,6 +568,11 @@ class PipelineRunner:
         return self.predict_test_data(data_column)
 
     def predict_test_data(self, data_column):
+        """
+        Predicts test_data
+        :param data_column: which column (opinion or sentiemnt [lang]) is it
+        :return:
+        """
         print('Start test prediction')
         start = time.time()
         y_pred_pipe = self.pipeline.predict(self.data_test)
@@ -505,6 +586,11 @@ class PipelineRunner:
         return acc, f1, rec, precision
 
     def fit_and_predict_and_calculate_confidence_pipe(self, data_column):
+        """
+        Fits pipeline and calculates confidence and different scores
+        :param data_column:
+        :return:
+        """
         print('Start fiting')
         self.pipeline.fit(self.data_training, self.data_training[data_column].to_numpy())
         print(f'Saving classifier to file {self.classifier_file}')
@@ -515,7 +601,7 @@ class PipelineRunner:
 
     def predict_test_data_confidence(self, data_column):
         """
-        calculates f1-Score, recall, precision and accruacy for 60%, 70% and 80% confidence for test data.
+        Calculates f1-Score, recall, precision and accruacy for 60%, 70% and 80% confidence for test data.
         :param data_column: name of the data column in test data
         :return: list of f1-Score, recall, precision and accruacy for 60%, 70% and 80% confidence
         """
@@ -566,7 +652,7 @@ class PipelineRunner:
 
     def filter_threshold(self, dataframe, threshold):
         """
-        filters entries of the dataframe by threshold
+        Filters entries of the dataframe by threshold
         :param dataframe: dataframe to filter
         :param threshold: threshold
         :return: filterd dataframe
@@ -598,7 +684,7 @@ class PipelineRunner:
 
     def save_prediction(self, prediction, data_column, data):
         """
-        saves the original data with the prediciton as extra column
+        Saves the original data with the prediciton as extra column
         :param prediction: prediction
         :param data_column: which column is predicted
         :param data: original data
@@ -612,7 +698,7 @@ class PipelineRunner:
 
     def save_prediction_confidence(self, prediction, data_column, data):
         """
-        saves the original data with the prediciton as extra column
+        Saves the original data with the prediciton as extra column
         :param prediction: prediction
         :param data_column: which column is predicted
         :param data: original data
@@ -629,7 +715,7 @@ class PipelineRunner:
 
     def filter_prediction(self, p, threshold):
         """
-
+        Filters prediction
         :param p: confidence of classes
         :param threshold: threshold
         :return: 0 if class_0-confidence >= threshold, 1 if class_1-confidence >= threshold, else n.a.
@@ -644,7 +730,7 @@ class PipelineRunner:
 
     def write_result_to_file(self, accuracy, f1, recall, precision, description):
         """
-        writes accuracy, f1, recall and precision to log file.
+        Writes accuracy, f1, recall and precision to log file.
         :param accuracy:
         :param f1:
         :param recall:
@@ -662,11 +748,21 @@ class PipelineRunner:
             file.write(f'\t\tPrecision Score: {precision}\n')
             file.write('#------------------------------------------------------------------------------------------\n')
 
-    def write_result_to_file_confidence(self, threshhold, accuracy, f1, recall, precision, description, num_all_entries, num_entries):
+    def write_result_to_file_confidence(self, threshold, accuracy, f1, recall, precision, description, num_all_entries, num_entries):
+        """
+        Writes accuracy, f1, recall and precision to log file with a given threshold
+        :param threshold
+        :param accuracy:
+        :param f1:
+        :param recall:
+        :param precision:
+        :param description: description of classifier
+        :return:
+        """
         with open(self.log_file, 'a', encoding='utf-8') as file:
             file.write('#------------------------------------------------------------------------------------------\n')
             file.write(f'{datetime.now().strftime("%b-%d-%Y %H:%M:%S")}\n')
-            file.write(f'for threshhold: {threshhold}\n')
+            file.write(f'for threshhold: {threshold}\n')
             file.write(f'Dropped Entries: {num_all_entries - num_entries}\n')
             file.write(f'Remaining Entries: {num_entries} of {num_all_entries}\n')
             file.write(f'{description}\n')
@@ -676,7 +772,15 @@ class PipelineRunner:
             file.write(f'\t\tPrecision Score: {precision}\n')
             file.write('#------------------------------------------------------------------------------------------\n')
 
-    def predict_data(self, data_file_name, column_to_transform=None, new_column_name=None, result_for_column=''):
+    def predict_data(self, data_file_name, result_for_column, column_to_transform=None, new_column_name=None):
+        """
+        Predicts given data without confidence
+        :param data_file_name: file name of data file
+        :param column_to_transform: column name which contains data if it is text
+        :param new_column_name: if it is text rename it to this if not it will look for sentence or sentences (case insensitive)
+        :param result_for_column:
+        :return: nothing
+        """
         data_validation = self.file_reader.read_file(data_file_name)
 
         if column_to_transform is not None:
@@ -693,7 +797,15 @@ class PipelineRunner:
         if result_for_column != '':
             self.save_prediction(output, result_for_column, data_validation)
 
-    def predict_data_confidence(self, data_file_name, column_to_transform=None, new_column_name=None, result_for_column=''):
+    def predict_data_confidence(self, data_file_name, result_for_column, column_to_transform=None, new_column_name=None):
+        """
+        Predicts given data with confidence
+        :param data_file_name: file name of data file
+        :param column_to_transform: column name which contains data if it is text
+        :param new_column_name: if it is text rename it to this if not it will look for sentence or sentences (case insensitive)
+        :param result_for_column:
+        :return: nothing
+        """
         data_validation = self.file_reader.read_file(data_file_name)
 
         if not new_column_name in data_validation.columns:
@@ -719,81 +831,110 @@ class PipelineRunner:
             self.save_prediction_confidence(output, result_for_column, data_validation)
 
 
-if __name__ == '__main__':
-
+def init_and_run_pipeline():
+    # default values
     default_log_file_name_opinion = f'data/results/result_opinion_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'
     default_log_file_name_sentiment = f'data/results/result_sentiment_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'
 
     default_training_file_opinion = 'AllOpinionDatasetRF_train.xlsx'
     default_test_file_opinion = 'AllOpinionDatasetRF_test.xlsx'
+    default_result_dir_opinion = 'data/results/'
     default_training_file_sentiment = 'data/datasetSentimentSRF_train.xlsx'
     default_test_file_sentiment = 'data/datasetSentimentSRF_test.xlsx'
+    default_result_dir_sentiment = 'data/results/'
 
     if len(sys.argv) > 1 and (sys.argv[1] == '-i' or sys.argv[1] == '--interactive'):
-
-        training_file_opinion = input(f'enter file path to training file for opinion [default {default_training_file_opinion}]: ')
+        # get parameter for opinion
+        training_file_opinion = input(
+            f'enter file path to training file for opinion [default {default_training_file_opinion}]: ')
         if not training_file_opinion:
             training_file_opinion = default_training_file_opinion
         test_file_opinion = input(f'enter file path to test file for opinion [default {default_test_file_opinion}]: ')
         if not test_file_opinion:
             test_file_opinion = default_test_file_opinion
-        training_file_sentiment = input(f'enter file path to training file for sentiment [default {default_training_file_sentiment}]: ')
-        if not training_file_sentiment:
-            training_file_sentiment = default_training_file_sentiment
-        test_file_sentiment = input(f'enter file path to test file for sentiment [default {default_test_file_sentiment}]: ')
-        if not test_file_sentiment:
-            test_file_sentiment = default_test_file_sentiment
-        log_file_sentiment = input(f'enter file path to log file for sentiment [default {default_log_file_name_sentiment}]: ')
-        if not log_file_sentiment:
-            log_file_sentiment = default_log_file_name_sentiment
         log_file_opinion = input(f'enter file path to log file for opinion [default {default_log_file_name_opinion}]: ')
         if not log_file_opinion:
             log_file_opinion = default_log_file_name_opinion
+        result_dir_opinion = input(
+            f'enter file path to result directory for opinion [default {default_result_dir_opinion}]: ')
+        if not result_dir_opinion:
+            result_dir_opinion = default_result_dir_opinion
+        fitting = input('Do you want to force new fitting of classifier for opinion. This will overwrite [y, [n]]: ')
+        force_fitting_opinion = (fitting == 'y')
+
+        # get parameter for sentiment
+        training_file_sentiment = input(
+            f'enter file path to training file for sentiment [default {default_training_file_sentiment}]: ')
+        if not training_file_sentiment:
+            training_file_sentiment = default_training_file_sentiment
+        test_file_sentiment = input(
+            f'enter file path to test file for sentiment [default {default_test_file_sentiment}]: ')
+        if not test_file_sentiment:
+            test_file_sentiment = default_test_file_sentiment
+        log_file_sentiment = input(
+            f'enter file path to log file for sentiment [default {default_log_file_name_sentiment}]: ')
+        if not log_file_sentiment:
+            log_file_sentiment = default_log_file_name_sentiment
+        result_dir_sentiment = input(
+            f'enter file path to result directory for sentiment [default {default_result_dir_sentiment}]: ')
+        if not result_dir_opinion:
+            result_dir_sentiment = default_result_dir_sentiment
+        fitting = input('Do you want to force new fitting of classifier for sentiment. This will overwrite [y, [n]]: ')
+        force_fitting_sentiment = (fitting == 'y')
 
         use_confidence = input('Do you want confidence values? [[y], n]')
         data_file = input('enter file path to data file: ')
     else:
+        # parameters for opinion
         training_file_opinion = default_training_file_opinion
         test_file_opinion = default_test_file_opinion
+        log_file_opinion = default_log_file_name_opinion
+        result_dir_opinion = default_result_dir_opinion
+
+        # parameters for sentiment
         training_file_sentiment = default_training_file_sentiment
         test_file_sentiment = default_test_file_sentiment
         log_file_sentiment = default_log_file_name_sentiment
-        log_file_opinion = default_log_file_name_opinion
+        result_dir_sentiment = default_result_dir_sentiment
         use_confidence = 'y'
+        force_fitting_opinion = False
+        force_fitting_sentiment = False
 
         data_file = ''
         if not data_file:
-            raise RuntimeError('use script in interacitve mode (-i or --interactive) or modify this script with a data file')
+            raise RuntimeError(
+                'use script in interacitve mode (-i or --interactive) or modify this script with a data file')
 
+    # advanced description of classifier
+    # change in script could be used to use different versions
+    classifier_description = 'from_2021-08-22'
 
+    # file path to dictionary
     dict_file = 'data/dict.csv'
 
     transformers_list = [TextToSentenceTransformer('text', 'Sentence'),
                          BertTransformer('Sentence', batchsize=10),
                          PreprocessorTransformer('Sentence'),
-                         SentimentOpinionValueCalculatorSingleValueTransformer(dict_file)]
+                         SentimentOpinionValueCalculatorTransformer(dict_file)]
 
     Cs = np.logspace(-6, 6, 200)
     max_iter = 500
-    l1s = [0.25, 0.5, 0.75]
 
     param_grid_log_reg = [
         # Standard Konfiguration
-         {
-             'solver': ['lbfgs'],
-             'C': Cs
-         },
+        {
+            'solver': ['lbfgs'],
+            'C': Cs
+        },
     ]
-
-
 
     if use_confidence == 'n':
         # SUBJopin
         pipeline_runner = PipelineRunner(dict_file, training_file_opinion, test_file_opinion,
-                                         log_file=log_file_opinion)
+                                         log_file=log_file_opinion, result_dir=result_dir_opinion)
         log_reg = LogisticRegression(max_iter=max_iter)
         pipeline_runner.make_pipeline(transformers_list, log_reg, 'SUBJopin01', param_grid_log_reg,
-                                      classifier_description='from_2021-08-22')
+                                      classifier_description='from_2021-08-22', force_fitting=force_fitting_opinion)
 
         print("Running prediction for opinion...")
         pipeline_runner.predict_data(data_file_name=data_file,
@@ -802,10 +943,10 @@ if __name__ == '__main__':
 
         # SUBJlang
         pipeline_runner = PipelineRunner(dict_file, training_file_sentiment, test_file_sentiment,
-                                         log_file=log_file_sentiment)
+                                         log_file=log_file_sentiment, result_dir=result_dir_sentiment)
         log_reg = LogisticRegression(max_iter=max_iter)
         pipeline_runner.make_pipeline(transformers_list, log_reg, 'SUBJlang01', param_grid_log_reg,
-                                      classifier_description='from_2021-08-22')
+                                      classifier_description='from_2021-08-22', force_fitting=force_fitting_sentiment)
 
         print("Running prediction for sentiment...")
         pipeline_runner.predict_data(data_file_name=data_file,
@@ -815,10 +956,10 @@ if __name__ == '__main__':
     else:
         # SUBJopin
         pipeline_runner = PipelineRunner(dict_file, training_file_opinion, test_file_opinion,
-                                         log_file=log_file_opinion)
+                                         log_file=log_file_opinion, result_dir=result_dir_opinion)
         log_reg = LogisticRegression(max_iter=max_iter)
         pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJopin01', param_grid_log_reg,
-                                                 classifier_description='from_2021-08-22')
+                                                 classifier_description='from_2021-08-22', force_fitting=force_fitting_opinion)
 
         print("Running prediction for opinion...")
         pipeline_runner.predict_data_confidence(data_file_name=data_file,
@@ -827,13 +968,17 @@ if __name__ == '__main__':
 
         # SUBJlang
         pipeline_runner = PipelineRunner(dict_file, training_file_sentiment, test_file_sentiment,
-                                         log_file=log_file_sentiment)
+                                         log_file=log_file_sentiment, result_dir=result_dir_sentiment)
         log_reg = LogisticRegression(max_iter=max_iter)
         pipeline_runner.make_pipeline_confidence(transformers_list, log_reg, 'SUBJlang01', param_grid_log_reg,
-                                                 classifier_description='from_2021-08-22')
+                                                 classifier_description='from_2021-08-22', force_fitting=force_fitting_sentiment)
 
         print("Running prediction for sentiment...")
         pipeline_runner.predict_data_confidence(data_file_name=data_file,
                                                 result_for_column='SUBJlang01',
                                                 new_column_name='Sentence')
+
+
+if __name__ == '__main__':
+    init_and_run_pipeline()
 
