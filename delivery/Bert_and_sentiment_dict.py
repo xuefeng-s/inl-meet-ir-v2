@@ -842,11 +842,11 @@ def init_and_run_pipeline():
     default_log_file_name_opinion = f'data/results/result_opinion_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'
     default_log_file_name_sentiment = f'data/results/result_sentiment_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'
 
-    default_training_file_opinion = 'AllOpinionDatasetRF_train.xlsx'
-    default_test_file_opinion = 'AllOpinionDatasetRF_test.xlsx'
+    default_training_file_opinion = 'data/opinion_dataset_train.xlsx'
+    default_test_file_opinion = 'data/opinion_dataset_test.xlsx'
     default_result_dir_opinion = 'data/results/'
-    default_training_file_sentiment = 'data/datasetSentimentSRF_train.xlsx'
-    default_test_file_sentiment = 'data/datasetSentimentSRF_test.xlsx'
+    default_training_file_sentiment = 'data/sentiment_dataset_train.xlsx'
+    default_test_file_sentiment = 'data/sentiment_dataset_test.xlsx'
     default_result_dir_sentiment = 'data/results/'
 
     if len(sys.argv) > 1 and (sys.argv[1] == '-i' or sys.argv[1] == '--interactive'):
