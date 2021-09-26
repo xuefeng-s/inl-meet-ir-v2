@@ -150,7 +150,7 @@ class PreprocessorBeforeBertTransformer(BaseEstimator, TransformerMixin, ColumnU
 
 class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
     """
-    Lets calculate bert the word embedding for every sentence
+    Lets bert calculate the sentence embeddings
     """
     def __init__(self, column, batchsize=10):
         self.column = column
@@ -216,7 +216,7 @@ class BertTransformer(BaseEstimator, TransformerMixin, ColumnUser):
         with torch.no_grad():
             output = self.model(input, attention_mask=mask)
 
-        # nur die erste Spalte auslesen = von BERT geschriebene Kennwerte
+        # nur die erste Spalte auslesen = sentence embeddings
         features = output[0][:, 0, :].numpy()
 
         return features
